@@ -10,55 +10,6 @@ import random
 from torch.utils.data import Subset
 
 
-def subsample_dataset(dataset, ratio=0.1, seed=12345):
-    """随机抽取 ratio 比例的数据"""
-    n = len(dataset)
-    k = int(n * ratio)
-    random.seed(seed)
-    indices = random.sample(range(n), k)
-    return Subset(dataset, indices)
-
-
-def special_sigmoid_smoothstep(x, step):
-    def smoothstep(edge0, edge1, x):
-        """
-        平滑阶梯函数（SmoothStep）:
-        计算 \( t = \text{clamp}((x - edge0)/(edge1 - edge0), 0, 1) \)
-        返回 \( t * t * (3 - 2 * t) \)
-        """
-        t = torch.clamp((x - edge0) / (edge1 - edge0), 0, 1)
-        return t * t * (3 - 2 * t)
-
-    return torch.where(
-        x <= 0,
-        torch.zeros_like(x),
-        torch.where(
-            x < step,
-            smoothstep(0, step, x),
-            torch.ones_like(x)
-        )
-    )
-
-def special_sigmoid_smoothstep_v2(x, start_step, end_step):
-    def smoothstep(edge0, edge1, x):
-        """
-        平滑阶梯函数（SmoothStep）:
-        计算 \( t = \text{clamp}((x - edge0)/(edge1 - edge0), 0, 1) \)
-        返回 \( t * t * (3 - 2 * t) \)
-        """
-        t = torch.clamp((x - edge0) / (edge1 - edge0), 0, 1)
-        return t * t * (3 - 2 * t)
-
-    return torch.where(
-        x <= start_step,
-        torch.zeros_like(x),
-        torch.where(
-            x < end_step,
-            smoothstep(start_step, end_step, x),
-            torch.ones_like(x)
-        )
-    )
-
 def prepare_batched_data(batch, device, dtype):
         """Recursively move tensors in a nested dict to the device and cast to weight_dtype."""
         for key, value in batch.items():
