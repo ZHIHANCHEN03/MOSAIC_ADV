@@ -2,7 +2,6 @@
 
 echo "Starting the training script..."
 
-# 参数配置
 max_num_refs=6
 ref_size=512
 height=512
@@ -24,7 +23,6 @@ version="num_refs${max_num_refs}_lora_rank_${rank}_${optimizer}_lr_${lr}_bsz_${t
 output_dir="${version}"
 mkdir -p "${output_dir}"
 
-# 启动训练
 accelerate launch --config_file "./accelerate_config.yaml" \
     --num_machines=${num_machines} \
     --num_processes=${num_processes} \
