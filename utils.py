@@ -25,12 +25,22 @@ def prepare_batched_data(batch, device, dtype):
 
 def count_parameters_in_M(model: nn.Module):
     """
-    计算模型的总参数量和可训练参数量，并以百万 (M) 为单位输出.
+    Calculate the total number of parameters and trainable parameters of a PyTorch model,
+    and return them in millions (M).
     
     Args:
-        model (nn.Module): 要计算的 PyTorch 模型.
+        model (nn.Module): The PyTorch model to calculate the parameters for.
     Returns:
-        tuple: 总参数量和可训练参数量，以百万 (M) 为单位
+        tuple: Total number of parameters and trainable parameters, both in millions (M).
+
+    翻译为英文:
+    Calculate the total number of parameters and trainable parameters of a PyTorch model,
+    and return them in millions (M).
+    
+    Args:
+        model (nn.Module): The PyTorch model to calculate the parameters for.
+    Returns:
+        tuple: Total number of parameters and trainable parameters, both in millions (M).
     """
     
     total_params = sum(p.numel() for p in model.parameters())
@@ -45,35 +55,27 @@ def count_parameters_in_M(model: nn.Module):
 
 def tensor2pil(tensor, width=512, height=512):
     target_size = (width, height)
-    # 确保 tensor 是 PyTorch 张量
     if not isinstance(tensor, torch.Tensor):
         raise TypeError('tensor must be a PyTorch tensor.')
 
-    # 移除多余的维度 (例如，从 [1, H, W] 变为 [H, W])
     if tensor.ndim > 2:
         tensor = tensor.squeeze()
     
-    # 转换为NumPy数组
     array_img = tensor.cpu().to(dtype=torch.float32).numpy()
     
-    # 如果维度为 [C, H, W]，转换为 [H, W, C]
     if array_img.ndim == 3 and array_img.shape[0] in [1, 3]:
         array_img = array_img.transpose(1, 2, 0)
     
-    # 检查并处理单通道图像
     if array_img.ndim == 2 or array_img.shape[2] == 1:
         array_img = np.expand_dims(array_img, axis=-1)
         array_img = np.repeat(array_img, 3, axis=-1)
 
-    # 确保数据范围在 [0, 1] 之间
     array_img = np.clip(array_img, 0, 1)
     
-    # 转换为 uint8
     array_img = (array_img * 255).astype(np.uint8)
 
-    # 使用 PIL.Image.fromarray 创建 PIL 图片
     pil_image = Image.fromarray(array_img)
-    # 将图像 resize 到目标大小
+
     pil_image = pil_image.resize(target_size, Image.LANCZOS)
     
     return pil_image
@@ -81,23 +83,22 @@ def tensor2pil(tensor, width=512, height=512):
 
 def convert_png_to_rgb_with_white_bg(input_path, pad_color=(255, 255, 255)):
     """
-    将带透明背景的 PNG 图像转换为带白色背景的 RGB 图像。
 
-    参数:
+    翻译为英文:
+    Convert a PNG image with transparent background to an RGB image with white background.
+
+    Args:
         input_path (str): 输入 PNG 图像的路径。
         pad_color (tuple): 填充颜色，默认为白色。
     
-    返回:
+    Returns:
         PIL.Image: 转换后的 RGB 图像。
     """
     image = Image.open(input_path)
     
-    # 检查图像是否有透明通道
     if image.mode in ('RGBA', 'LA') or (image.mode == 'P' and 'transparency' in image.info):
         image = image.convert("RGBA")
-        # 创建白色背景
         white_bg = Image.new("RGB", image.size, pad_color)
-        # 合成图像
         white_bg.paste(image, mask=image.split()[3])  # 3 是 alpha 通道
         final_image = white_bg
     else:
@@ -107,19 +108,18 @@ def convert_png_to_rgb_with_white_bg(input_path, pad_color=(255, 255, 255)):
 
 def get_bounding_box(image, bg_color=(255, 255, 255)):
     """
-    获取图像中非背景部分的最小边界框。
+    Get the minimum bounding box of the non-background part of the image.
 
-    参数:
-        image (PIL.Image): 输入的 RGB 图像。
-        bg_color (tuple): 背景颜色，默认为白色。
+    Args:
+        image (PIL.Image)
+        bg_color (tuple)
     
-    返回:
-        tuple: (left, upper, right, lower) 边界框坐标
+    Returns:
+        tuple: (left, upper, right, lower) 
+    
     """
-    # 将图像转换为 numpy 数组
     np_image = np.array(image)
     
-    # 如果图像有透明度，忽略 alpha 通道
     if np_image.shape[2] == 4:
         np_image = np_image[:, :, :3]
     
@@ -127,7 +127,6 @@ def get_bounding_box(image, bg_color=(255, 255, 255)):
     mask = (np_image != bg_color).any(axis=2)
     
     if not mask.any():
-        # 如果整个图像都是背景，返回全图
         return (0, 0, image.width, image.height)
     
     coords = np.argwhere(mask)
@@ -138,60 +137,54 @@ def get_bounding_box(image, bg_color=(255, 255, 255)):
 
 def resize_with_bbox(image, target_size, pad_color=(255, 255, 255), scale=0.8):
     """
-    根据物体的最小边界框调整图像大小并填充到目标尺寸。
+    Resize the image based on the bounding box of the non-background part and pad to the target size.
 
-    参数:
-        image (PIL.Image): 输入的 RGB 图像。
-        target_size (int): 目标图像的宽度和高度（假设为正方形）。
-        pad_color (tuple): 填充颜色，默认为白色。
-        scale (float): 物体在目标图像中所占比例，默认为 0.9。
+    Args:
+        image (PIL.Image)
+        target_size (int)
+        pad_color (tuple)
+        scale (float)
     
-    返回:
-        PIL.Image: 处理后的图像。
+    Returns:
+        PIL.Image: 
+    
     """
-    # 获取物体的边界框
     bbox = get_bounding_box(image, bg_color=pad_color)
     cropped = image.crop(bbox)
     cropped_width, cropped_height = cropped.size
 
-    # 确定缩放比例
     long_side = max(cropped_width, cropped_height)
     scale_factor = (target_size * scale) / long_side
     new_width = int(cropped_width * scale_factor)
     new_height = int(cropped_height * scale_factor)
     
-    # 缩放图像
     resized = cropped.resize((new_width, new_height), Image.Resampling.LANCZOS)
     
-    # 创建白色背景
     final_image = Image.new("RGB", (target_size, target_size), pad_color)
     
-    # 计算填充位置
     paste_x = (target_size - new_width) // 2
     paste_y = (target_size - new_height) // 2
     
-    # 粘贴缩放后的图像到背景
     final_image.paste(resized, (paste_x, paste_y))
     
     return final_image
 
 def process_image(image_path, target_size, pad_color=(255, 255, 255), scale=0.8):
     """
-    完整的图像处理流程：转换背景、调整大小和填充。
+    Complete image processing pipeline: convert background to white, resize based on bounding box, and pad to target size.
 
-    参数:
-        image_path (str): 输入图像的路径。
-        target_size (int): 目标图像的宽度和高度。
-        pad_color (tuple): 填充颜色，默认为白色。
-        scale (float): 物体在目标图像中所占比例，默认为 0.9。
+    Args:
+        image_path (str): Path to the input image.
+        target_size (int): Target width and height of the output image.
+        pad_color (tuple): Padding color, default is white.
+        scale (float): Proportion of the object in the output image, default is 0.9.
     
-    返回:
-        PIL.Image: 处理后的图像。
+    Returns:
+        PIL.Image: Processed image.
+    
     """
-    # 转换背景为白色
     image_pil = convert_png_to_rgb_with_white_bg(image_path, pad_color=pad_color)
     
-    # 根据边界框调整大小并填充
     image_pil = resize_with_bbox(image_pil, target_size=target_size, pad_color=pad_color, scale=scale)
     
     return image_pil
