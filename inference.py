@@ -79,11 +79,11 @@ with open(f'example_cases.json', 'r', encoding='utf-8') as f:
                 num_images_per_prompt=1,
                 height=height,
                 width=width,
-                guidance_scale=guidance_scale, # if not args.de_distill else None, # 训练的时候为 1, 推理的时候为 3.5
+                guidance_scale=guidance_scale,
                 generator=torch.Generator("cuda").manual_seed(42),
             )[0]
         if len(result) == 0:
-            print(f"警告: 生成结果为空，跳过 {index}")
+            print(f"warning: empty result for {index}")
             continue
             
         result_img = result[0]
@@ -91,9 +91,7 @@ with open(f'example_cases.json', 'r', encoding='utf-8') as f:
         result_img.save(result_img_path)
         print(f"save to {result_img_path}")
 
-        # 调整参考图像大小
         resized_refs = [pil.resize((height, width), Image.Resampling.LANCZOS) for pil in ref_imgs]
-        # 拼接图像
         panel = len(image_paths)
         concat_image = Image.new("RGB", (height * (panel + 1), height))
         for i, pil_img in enumerate(resized_refs[:panel]):
