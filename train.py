@@ -604,14 +604,14 @@ def get_lin_function(
 
 
 def sample_t_with_resolution(bsz, height, width, device, dtype):
-    # 1. logistic-normal 基础采样
+    # 1. logistic-normal sample
     t = torch.sigmoid(torch.randn((bsz,), device=device, dtype=dtype))
 
-    # 2. resolution -> mu（分辨率越大，mu 越大）
+    # 2. resolution -> mu
     resolution = height * width
     mu = get_lin_function(y1=0.5, y2=1.15)(resolution)
 
-    # 3. 分辨率相关的 time_shift
+    # 3. resolution related time_shift
     t = time_shift(mu, 1.0, t)
 
     return t
@@ -626,8 +626,8 @@ def jsd_loss(p, q, eps=1e-8):
 
 def sym_kl_divergence(p, q, eps=1e-8):
     """
-    对称 KL 散度: 0.5 * KL(p‖q) + 0.5 * KL(q‖p)
-    p, q: [tgt_len] 已经归一化的概率分布
+    Symmetric KL Divergence: 0.5 * KL(p‖q) + 0.5 * KL(q‖p)
+    p, q: [tgt_len] normalized probability distributions
     """
     p = p + eps
     q = q + eps
@@ -673,13 +673,6 @@ def compute_align_sep_losses(attn_map, coords, ref_len):
             for j in range(i+1, num_refs):
                 loss_sep += jsd_loss(avg_tokens[i], avg_tokens[j])
         loss_sep /= (num_refs * (num_refs-1) / 2)
-
-        # 对称 KL 散度
-        # loss_sep = 0.0
-        # for i in range(num_refs):
-        #     for j in range(i+1, num_refs):
-        #         loss_sep += sym_kl_divergence(avg_tokens[i], avg_tokens[j])
-        # loss_sep = loss_sep / (num_refs * (num_refs - 1) / 2)
 
     else:
         loss_sep = torch.tensor(0.0, device=attn_map.device)
