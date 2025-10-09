@@ -88,17 +88,10 @@ from my_datasets.Subject200k_dataset import Subjects200K, make_collate_fn, make_
 
 from utils import (
     count_parameters_in_M, 
-    prepare_batched_data, 
-    tensor2pil, 
-    convert_png_to_rgb_with_white_bg, 
-    special_sigmoid_smoothstep,
-    subsample_dataset,
+    prepare_batched_data,
     process_image
 )
 
-
-if is_wandb_available():
-    import wandb
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.32.0")
@@ -654,7 +647,7 @@ def compute_align_sep_losses(attn_map, coords, ref_len):
     num_refs = attn_map.shape[0] // ref_len
     tgt_len = attn_map.shape[1]
 
-    # --- 1. token-level 对齐监督 ---
+    # --- 1. token-level align ---
     losses_align = []
     for ref_idx in range(num_refs):
         for local_ref_idx, tgt_idx in coords[ref_idx].items():
@@ -668,11 +661,11 @@ def compute_align_sep_losses(attn_map, coords, ref_len):
 
     loss_align = torch.stack(losses_align).mean() if losses_align else torch.tensor(0.0, device=attn_map.device)
 
-    # --- 2. ref-image level 分布分离 ---
+    # --- 2. ref-image level decoupling ---
     if num_refs >= 2:
         attn_map_reshaped = attn_map.view(num_refs, ref_len, tgt_len)  # [num_refs, ref_len, tgt_len]
         avg_tokens = attn_map_reshaped.mean(dim=1)  # [num_refs, tgt_len]
-        # avg_tokens = F.normalize(avg_tokens, p=2, dim=-1)  # L2 归一化
+        # avg_tokens = F.normalize(avg_tokens, p=2, dim=-1)  # L2 norm
         
         # JSD
         loss_sep = 0.0
@@ -701,7 +694,7 @@ def log_validation(args, pipe, device, weight_dtype, img_log_dir, step=0, num_im
     for i in range(args.max_num_refs):
         position_deltas.append([0, -(args.ref_size * (i + 1)) // 16])
 
-    # 定义测试用的 cases
+    # test cases
     test_cases = [
         {
             "prompt": "A toy car on a wooden floor.",
@@ -712,7 +705,6 @@ def log_validation(args, pipe, device, weight_dtype, img_log_dir, step=0, num_im
     ]
 
     for case_idx, case in enumerate(test_cases):
-        # 处理参考图像
         appearance_imgs = [
             process_image(p, target_size=args.ref_size, pad_color=(255, 255, 255), scale=0.9)
             for p in case["image_paths"]
@@ -738,8 +730,7 @@ def log_validation(args, pipe, device, weight_dtype, img_log_dir, step=0, num_im
             guidance_scale=3.5,
             generator=torch.Generator("cuda").manual_seed(args.seed),
         )[0]
-
-        # 拼图展示: 参考图像 + 生成结果
+        
         image_list = []
         for row in range(bsz):
             for i in range(num_refs):
@@ -762,8 +753,8 @@ def main(args):
         )
 
     logging_dir = Path(args.output_dir, args.logging_dir)
-    img_log_dir = osp.join(logging_dir, "images") # logs/images/ 前面不能有 / !!!
-    ckpt_dir = osp.join(args.output_dir, "checkpoints") # logs/images/ 前面不能有 / !!!
+    img_log_dir = osp.join(logging_dir, "images")
+    ckpt_dir = osp.join(args.output_dir, "checkpoints")
 
     accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=logging_dir)
     kwargs = InitProcessGroupKwargs(timeout=timedelta(seconds=3600))
@@ -845,8 +836,7 @@ def main(args):
     )
     
     transformer = FluxTransformer2DModel.from_pretrained(
-        args.pretrained_model_name_or_path, 
-        # "/mnt/workspace/shedong/hf_model/black-forest-labs/FLUX-xhspro-sailu",
+        args.pretrained_model_name_or_path,
         subfolder="transformer",
         revision=args.revision, 
         variant=args.variant
@@ -984,19 +974,18 @@ def main(args):
             item["quality_assessment"].get(key, 0) >= 5
             for key in ["compositeStructure", "objectConsistency", "imageQuality"]
         )
-    dataset_subject200k_valid = dataset_subject200k["train"].filter( # 过滤出高质量
+    dataset_subject200k_valid = dataset_subject200k["train"].filter(
         filter_func,
         num_proc=16,
         cache_file_name="./cache/dataset/data_valid.arrow", # Optional
     )
-    # 使用自定义类
     subject_dataset = Subjects200K(
         original_dataset=dataset_subject200k_valid,
         ref_size=args.ref_size,
         tgt_size=args.height,
         grounding_dir="ByteDance-FanQie/SemAlign-MS-Subjects200K/mask",
         coord_folder="ByteDance-FanQie/SemAlign-MS-Subjects200K/coord",
-        mode="train", t_drop_rate=0.05, i_drop_rate=0.05, ti_drop_rate=0.05, # dropout for cfg
+        mode="train", t_drop_rate=0.05, i_drop_rate=0.05, ti_drop_rate=0.05,
         add_postfix=False,
     )
 
@@ -1119,7 +1108,7 @@ def main(args):
             # ============================================================
             models_to_accumulate = [transformer]
             with accelerator.accumulate(models_to_accumulate):
-                prepare_batched_data(batch, device=accelerator.device, dtype=weight_dtype) # batch data 转换 float32 --> weight_dtype
+                prepare_batched_data(batch, device=accelerator.device, dtype=weight_dtype) # batch data float32 --> weight_dtype
                 
                 num_refs = batch['ref_imgs'].shape[1]
                 appearance_imgs = [] # [bs, 3, 512, 512]
@@ -1189,7 +1178,7 @@ def main(args):
                     appearances_image_ids.append(cond_image_ids.clone())
                     
                 for i in range(num_refs):
-                    appearances_image_ids[i][:, 2] -= (args.ref_size * (i + 1)) // 16 # 左移参考图的宽度
+                    appearances_image_ids[i][:, 2] -= (args.ref_size * (i + 1)) // 16 # left shift reference image width
 
                 # Sample noise that we'll add to the latents
                 packed_noise = torch.randn_like(packed_model_input) # [1, 16, 64, 64]
@@ -1221,7 +1210,7 @@ def main(args):
                 # Predict the noise residual
                 transformer_out = transformer_forward(
                     transformer,
-                    image_features=[packed_noisy_model_input, *(packed_condition_latents)], # 解包 [x_t, c1, c2, c3]
+                    image_features=[packed_noisy_model_input, *(packed_condition_latents)],
                     text_features=[prompt_embeds],
                     img_ids=[latent_image_ids, *(cond_image_ids)],
                     txt_ids=[text_ids],

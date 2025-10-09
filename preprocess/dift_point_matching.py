@@ -145,7 +145,6 @@ def visualize_matches(coords_dift, coords_geo_path, valid_idx, latent_size, ref_
         draw_ref.text((rx_img+5, ry_img-5), str(idx), fill="red")
         draw_tgt.text((tx_img+5, ty_img-5), str(idx), fill="blue")
 
-    # 拼接两张图：横向拼接
     combined = Image.new("RGB", (ref_img_full.width + tgt_img_full.width, img_size))
     combined.paste(ref_img_full, (0, 0))
     combined.paste(tgt_img_full, (ref_img_full.width, 0))
@@ -155,7 +154,6 @@ def visualize_matches(coords_dift, coords_geo_path, valid_idx, latent_size, ref_
 
 
 def process_dataset(dataset, dift, args):
-    # === 确定背景目录 ===
     coords_dir = "/mnt/bn/shedong/hf_data/Yuanshi/Subjects200K/coord"
 
     parent_name = os.path.basename(os.path.dirname(coords_dir))
@@ -167,8 +165,8 @@ def process_dataset(dataset, dift, args):
         collate_fn=make_collate_fn(num_refs=6),  # 你的 collate_fn
         batch_size=1,
         shuffle=False,
-        num_workers=0,  # 这里关掉 DataLoader 多进程
-        pin_memory=True,  # 不固定到 GPU
+        num_workers=0,  # cut off multi-process
+        pin_memory=True,
         drop_last=False,
     )
 
@@ -195,7 +193,7 @@ def process_dataset(dataset, dift, args):
             ref_img_masked = to_pil(tgt_img * mask).resize((args.img_size, args.img_size))
             tgt_img_masked = remove_white_background(ref_img).resize((args.img_size, args.img_size))
 
-            # 只在对应区域内点匹配，提高准确率
+            # Only match points within the corresponding area to improve accuracy
             feat1 = extract_features(dift, ref_img_masked, args.ensemble_size).squeeze(0)
             feat2 = extract_features(dift, tgt_img_masked, args.ensemble_size).squeeze(0)
             

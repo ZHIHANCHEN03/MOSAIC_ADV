@@ -291,15 +291,9 @@ def make_collate_fn(num_refs: int = 6):
 
 
 def make_collate_fn_w_coord(num_refs: int = 6):
-    """
-    返回一个带参数的 collate_fn，以便 DataLoader 中简单写:
-        collate_fn = make_collate_fn(num_refs=6)
-    """
     def _collate(examples):
-        # ---- 1. 先确定图像基础形状 (C,H,W) ----
-        # 以第一条样本的 tgt_img 作为参考
+        # Use the shape of the first sample's tgt_img as the reference
         c, h, w = examples[0]["ref_imgs"][0].shape
-        # ---- 2. 收集并 pad / truncate 参考图 ----
         ids = []
         ref_imgs = []
         tgt_imgs = []
@@ -311,18 +305,16 @@ def make_collate_fn_w_coord(num_refs: int = 6):
         drop_masks = []
 
         for ex in examples:
-            refs = ex["ref_imgs"]                     # list[Tensor] 长度 0~num_refs
-            refs = refs[:num_refs]                  # 若多于 num_refs 则截断
-            ref_imgs.append(torch.stack(refs))      # (num_refs, C, H, W)
+            refs = ex["ref_imgs"] # list[Tensor] 0~num_refs
+            refs = refs[:num_refs]                  
+            ref_imgs.append(torch.stack(refs)) # (num_refs, C, H, W)
             
             ids.append(ex["id"])
             tgt_imgs.append(ex["tgt_img"])
             captions.append(ex["caption"])
             coords.append(ex["coords"])
-            # --- 处理 masks ---
             ex_masks = ex["masks"][:num_refs]
             if len(ex_masks) < num_refs:
-                # 获取目标图大小 (1, C, H, W) -> (H, W)
                 _, H, W = ex["tgt_img"].shape
                 pad_mask = torch.zeros((1, H, W), dtype=torch.uint8)
                 ex_masks += [pad_mask] * (num_refs - len(ex_masks))
@@ -332,16 +324,15 @@ def make_collate_fn_w_coord(num_refs: int = 6):
             drop_texts.append(ex["drop_text"])
             drop_masks.append(ex["drop_mask"])
 
-        # ---- 3. 堆 batch 维 ----
         ref_imgs = torch.stack(ref_imgs)            # (B, num_refs, C, H, W)
         tgt_imgs = torch.stack(tgt_imgs)            # (B, C, H, W)
         masks = torch.stack(masks)
 
         batch = {
             "ids"        : ids,
-            "ref_imgs"   : ref_imgs,                # 统一 tensor
+            "ref_imgs"   : ref_imgs,
             "tgt_imgs"   : tgt_imgs,
-            "captions"   : captions,                # 仍保持 list[str]
+            "captions"   : captions,
             "masks"      : masks,
             "coords"     : coords,
             "drop_images": torch.as_tensor(drop_images, dtype=torch.bool),
@@ -380,7 +371,6 @@ if __name__ == "__main__":
 
     ref_size = 1024
     tgt_size = 1024
-    # 使用自定义类
     custom_train = Subjects200K(
         original_dataset=dataset_valid,
         mode="train",

@@ -137,23 +137,23 @@ def process_dataset(dataset):
 
             B, C, H, W = feat1.shape
 
-            # 1. 展平空间维度 -> [H*W, C]
+            # 1. Flatten the spatial dimension -> [H*W, C]
             feat1_flat = feat1.view(C, -1).T  # [H*W, C]
             feat2_flat = feat2.view(C, -1).T  # [H*W, C]
 
-            # 3. 计算相似度矩阵 -> [H*W, H*W]
+            # 3. Compute the similarity matrix -> [H*W, H*W]
             cos_map = torch.mm(feat1_flat, feat2_flat.T)
 
-            # 4. 对每个位置找到最相似的点
+            # 4. For each position, find the most similar point in feat2
             max_sim, max_idx = torch.max(cos_map, dim=1)  # [H*W]
 
-            # 5. 将 idx 转换成 (y, x) 坐标
-            max_y = (max_idx // W).unsqueeze(1) 
-            max_x = (max_idx % W).unsqueeze(1) 
+            # 5. Convert idx to (y, x) coordinates
+            max_y = (max_idx // W).unsqueeze(1)  # [H*W, 1]
+            max_x = (max_idx % W).unsqueeze(1)  # [H*W, 1]
 
-            # 6. 拼成 (H*W, 2) 的矩阵
+            # 6. Concatenate y and x to form (H*W, 2) matrix
             coords = torch.cat([max_y, max_x], dim=1)  # [H*W, 2]
-
+            
             torch.save(coords, f"{coords_sub_dir}/{id}_ref{i}.pt")
 
 

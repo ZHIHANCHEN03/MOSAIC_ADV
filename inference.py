@@ -39,7 +39,6 @@ width = 512
 guidance_scale=3.5
 
 
-# 创建输出目录（如果不存在）
 out_dir = './outputs'
 os.makedirs(out_dir, exist_ok=True)
 
@@ -90,7 +89,7 @@ with open(f'example_cases.json', 'r', encoding='utf-8') as f:
         result_img = result[0]
         result_img_path = os.path.join(out_dir, f"{index}_cfg_{guidance_scale}_{height}x{width}.jpg")
         result_img.save(result_img_path)
-        print(f"保存生成的图像到 {result_img_path}")
+        print(f"save to {result_img_path}")
 
         # 调整参考图像大小
         resized_refs = [pil.resize((height, width), Image.Resampling.LANCZOS) for pil in ref_imgs]
@@ -102,4 +101,4 @@ with open(f'example_cases.json', 'r', encoding='utf-8') as f:
         concat_image.paste(result_img, (height * panel, 0))
         concat_image_path = os.path.join(out_dir, f"{index}_{height}x{width}_compared.jpg")
         concat_image.save(concat_image_path)
-        print(f"保存对比图像到 {concat_image_path}")
+        print(f"save compared image to {concat_image_path}")
