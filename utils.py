@@ -11,29 +11,20 @@ from torch.utils.data import Subset
 
 
 def prepare_batched_data(batch, device, dtype):
-        """Recursively move tensors in a nested dict to the device and cast to weight_dtype."""
-        for key, value in batch.items():
-            if isinstance(value, dict):
-                batch[key] = prepare_batched_data(value, device, dtype)
-            elif isinstance(value, torch.Tensor):
-                if value.ndim == 3:
-                    batch[key] = value.unsqueeze(0).to(device).to(dtype)
-                else:
-                    batch[key] = value.to(device).to(dtype)
-        return batch
+    """Recursively move tensors in a nested dict to the device and cast to weight_dtype."""
+    for key, value in batch.items():
+        if isinstance(value, dict):
+            batch[key] = prepare_batched_data(value, device, dtype)
+        elif isinstance(value, torch.Tensor):
+            if value.ndim == 3:
+                batch[key] = value.unsqueeze(0).to(device).to(dtype)
+            else:
+                batch[key] = value.to(device).to(dtype)
+    return batch
 
 
 def count_parameters_in_M(model: nn.Module):
     """
-    Calculate the total number of parameters and trainable parameters of a PyTorch model,
-    and return them in millions (M).
-    
-    Args:
-        model (nn.Module): The PyTorch model to calculate the parameters for.
-    Returns:
-        tuple: Total number of parameters and trainable parameters, both in millions (M).
-
-    翻译为英文:
     Calculate the total number of parameters and trainable parameters of a PyTorch model,
     and return them in millions (M).
     
@@ -83,16 +74,14 @@ def tensor2pil(tensor, width=512, height=512):
 
 def convert_png_to_rgb_with_white_bg(input_path, pad_color=(255, 255, 255)):
     """
-
-    翻译为英文:
     Convert a PNG image with transparent background to an RGB image with white background.
 
     Args:
-        input_path (str): 输入 PNG 图像的路径。
-        pad_color (tuple): 填充颜色，默认为白色。
+        input_path (str)
+        pad_color (tuple)
     
     Returns:
-        PIL.Image: 转换后的 RGB 图像。
+        PIL.Image
     """
     image = Image.open(input_path)
     
@@ -184,7 +173,7 @@ def process_image(image_path, target_size, pad_color=(255, 255, 255), scale=0.8)
     
     """
     image_pil = convert_png_to_rgb_with_white_bg(image_path, pad_color=pad_color)
-    
+
     image_pil = resize_with_bbox(image_pil, target_size=target_size, pad_color=pad_color, scale=scale)
     
     return image_pil
