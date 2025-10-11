@@ -202,7 +202,7 @@ def process_dataset(dataset, dift, args):
             print(f"Saved coordinates to: {save_path}")
 
             latent_size = args.img_size // 16
-            # 如果是 uint8 且 max==1，则先放大到 0/255
+            # If the mask is uint8 and max==1, scale it to 0/255 to translate to binary mask
             if mask.dtype == torch.uint8 and mask.max() <= 1:
                 mask = mask * 255
             ref_mask_pil = to_pil(mask).resize((latent_size, latent_size)).convert("L")
@@ -261,13 +261,12 @@ def main():
         num_proc=32,
         # cache_file_name="./cache/dataset/collection_2_valid.arrow", # Optional
     )
-    # 使用自定义类
     subject_dataset = Subjects200K(
         original_dataset=dataset_subject200k_valid,
         ref_size=1024,
         tgt_size=1024,
         grounding_dir="/mnt/bn/shedong/hf_data/Yuanshi/Subjects200K/mask",
-        mode="train", t_drop_rate=0.00, i_drop_rate=0.00, ti_drop_rate=0.00, # dropout for cfg
+        mode="train", t_drop_rate=0.00, i_drop_rate=0.00, ti_drop_rate=0.00,
         add_postfix=False,
     )
     dataset_list = [

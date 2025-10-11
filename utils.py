@@ -112,7 +112,6 @@ def get_bounding_box(image, bg_color=(255, 255, 255)):
     if np_image.shape[2] == 4:
         np_image = np_image[:, :, :3]
     
-    # 找到非背景像素
     mask = (np_image != bg_color).any(axis=2)
     
     if not mask.any():

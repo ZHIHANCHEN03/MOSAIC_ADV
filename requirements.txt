@@ -1,4 +1,4 @@
-transformers
+transformers==4.46.3
 diffusers==0.32.0
 peft==0.15.0
 opencv-python

@@ -86,11 +86,11 @@ def process_dataset(dataset):
     # === DataLoader ===
     train_dataloader = torch.utils.data.DataLoader(
         dataset,
-        collate_fn=make_collate_fn(num_refs=6),  # 你的 collate_fn
+        collate_fn=make_collate_fn(num_refs=6),
         batch_size=1,
         shuffle=False,
-        num_workers=0,  # 这里关掉 DataLoader 多进程
-        pin_memory=True,  # 不固定到 GPU
+        num_workers=0,
+        pin_memory=True,
         drop_last=False,
     )
 
@@ -153,7 +153,7 @@ def process_dataset(dataset):
 
             # 6. Concatenate y and x to form (H*W, 2) matrix
             coords = torch.cat([max_y, max_x], dim=1)  # [H*W, 2]
-            
+
             torch.save(coords, f"{coords_sub_dir}/{id}_ref{i}.pt")
 
 
@@ -172,7 +172,7 @@ if __name__ == "__main__":
             item["quality_assessment"].get(key, 0) >= 5
             for key in ["compositeStructure", "objectConsistency", "imageQuality"]
         )
-    dataset_subject200k_valid = dataset_subject200k["train"].filter( # 过滤出高质量
+    dataset_subject200k_valid = dataset_subject200k["train"].filter(
         filter_func,
         num_proc=32,
         # cache_file_name="./cache/dataset/collection_2_valid.arrow", # Optional
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         ref_size=1024,
         tgt_size=1024,
         grounding_dir="/mnt/bn/shedong/hf_data/Yuanshi/Subjects200K/mask",
-        mode="train", t_drop_rate=0.00, i_drop_rate=0.00, ti_drop_rate=0.00, # dropout for cfg
+        mode="train", t_drop_rate=0.00, i_drop_rate=0.00, ti_drop_rate=0.00,
         add_postfix=False,
     )
     
