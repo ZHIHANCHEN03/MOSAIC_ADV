@@ -30,6 +30,8 @@ class="center">
 
 
 ## 🔥 News
+- **2026-01-27**: 🎉 Congratulations! MOSAIC has been accepted by ICLR 2026!
+- **2026-01-27**: 🔥 Update the multi-subject data generation pipeline!
 - **2025-09-30**: 🔥 Release training/inference codes and [models](https://huggingface.co/ByteDance-FanQie/MOSAIC)(resolution 512x512). The vision of resolution 1024x1024 is coming soon.
 - **2025-09-30**: 🔥 Release the [SemAlign-MS-Subjects200K](https://huggingface.co/datasets/ByteDance-FanQie/SemAlign-MS-Subjects200K) dataset 
 - **2025-09-02**: The [arXiv paper](https://arxiv.org/abs/2509.01977v1) of MOSAIC is released.
@@ -76,9 +78,9 @@ To set up the preprocessing environment, first download the [DIFT](https://githu
 To support research and the open-source community, we will release the entire project—including datasets, inference pipelines, and model weights. Thank you for your patience and continued support! 🌟
 - ✅ Release tarining and inference codes.
 - ✅ Release the SemAlign-MS-Subjects200K dataset.
+- ✅ Release the multi-subject driven dataset generation pipeline.
 - ✅ Release model checkpoints (512x512).
 - ⬜ Release model checkpoints (1024x1024).
-- ⬜ Release the multi-subject driven dataset generation pipeline.
 
 <!-- ✅ -->
 
