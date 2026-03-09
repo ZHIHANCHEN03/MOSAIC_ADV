@@ -15,9 +15,9 @@
   <a href="https://scholar.google.com/citations?user=DcVoflUAAAAJ&hl=zh-CN&oi=ao"><span style="color:#137cf3; font-family:Gill Sans">Dong She<sup>*</sup></span></a>, 
   <a href="https://scholar.google.com/citations?user=tql_Zc4AAAAJ&hl=zh-CN&oi=ao"><span style="color:#137cf3; font-family:Gill Sans">Siming Fu<sup>*</sup></span></a>, 
   <a href="https://scholar.google.com/citations?user=-WUyWpMAAAAJ&hl=zh-CN&oi=ao"><span style="color:#137cf3; font-family:Gill Sans">Mushui Liu<sup>*</sup></span></a>, 
-  <a href="https://scholar.google.com/citations?user=zWQf0XcAAAAJ&hl=zh-CN&oi=ao"><span style="color:#137cf3; font-family:Gill Sans">Qiaoqiao Jin<sup>*</sup></span></a>, 
-  <a href="https://scholar.google.com/citations?user=4lzd8NsAAAAJ&hl=zh-CN&oi=ao"><span style="color:#137cf3; font-family:Gill Sans">Hualiang Wang<sup>*</sup></span></a>,  
-  <br> 
+  <a href="https://scholar.google.com/citations?user=zWQf0XcAAAAJ&hl=zh-CN&oi=ao"><span style="color:#137cf3; font-family:Gill Sans">Qiaoqiao Jin<sup>*</sup></span></a>,
+  <br>
+  <a href="https://scholar.google.com/citations?user=4lzd8NsAAAAJ&hl=zh-CN&oi=ao"><span style="color:#137cf3; font-family:Gill Sans">Hualiang Wang<sup></sup></span></a>, 
   <span style="color:#137cf3; font-family:Gill Sans">Mu Liu</span></a>, 
   <span style="color:#137cf3; font-family:Gill Sans">Jidong Jiang<sup>+</sup></span></a> 
   <br>
