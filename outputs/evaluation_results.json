@@ -1,0 +1,16 @@
+{
+    "summary": {
+        "avg_clip": 0.15515318512916565,
+        "avg_identity": -22.385196685791016
+    },
+    "details": [
+        {
+            "clip_score": 0.15515318512916565,
+            "identity_scores": [
+                -22.385196685791016
+            ],
+            "avg_identity_score": -22.385196685791016,
+            "index": 0
+        }
+    ]
+}
