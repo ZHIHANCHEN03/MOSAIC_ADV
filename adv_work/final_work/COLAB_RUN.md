@@ -6,8 +6,9 @@
 
 ---
 
-### Cell 1: 初始化环境 (Blackwell/sm_120 Compatibility)
-**注意**：为了兼容 Blackwell GPU (sm_120) 并避免 `no kernel image` 错误，我们会强制安装 PyTorch Nightly，并移除 `deepspeed` (仅推理不需要，且会导致编译失败)。
+### Cell 1: 初始化环境（不安装 PyTorch/CUDA）
+**注意**：仅安装 MOSAIC + 你的改动所需依赖，不安装/覆盖 PyTorch 与 CUDA。
+**注意**：下面命令里的 URL 不要加反引号。
 
 **运行完此 Cell 后，如果系统提示 "Restart Session"，请务必点击重启！**
 
@@ -15,27 +16,21 @@
 %%bash
 set -euo pipefail
 
-# 1. Clone Repo
-if [ ! -d "MOSAIC_ADV" ]; then
-  git clone https://github.com/ZHIHANCHEN03/MOSAIC_ADV.git MOSAIC_ADV
-fi
+# 1. Force fresh clone (delete old folder if exists)
+rm -rf MOSAIC_ADV
+git clone https://github.com/ZHIHANCHEN03/MOSAIC_ADV.git MOSAIC_ADV
 cd MOSAIC_ADV
 
 # 2. Modify requirements.txt for compatibility
-# (a) Unpin torch version (allow upgrade)
-sed -i 's/torch==2.4.1/torch/' requirements.txt
-# (b) Remove deepspeed (inference only, avoids build errors on Nightly)
-sed -i '/deepspeed/d' requirements.txt
+sed -i '/^torch==/d' requirements.txt
+sed -i '/^torchvision/d' requirements.txt
+sed -i '/^torchaudio/d' requirements.txt
+sed -i '/^deepspeed/d' requirements.txt
 
-# 3. Install Dependencies (Standard)
+# 3. Install Dependencies
 python3 -m pip install -U pip
-# Install without deepspeed first
 python3 -m pip install -r requirements.txt
 python3 -m pip install google-generativeai python-dotenv
-
-# 4. Force Upgrade to PyTorch Nightly (Supports sm_120 / Blackwell)
-# Must be done AFTER requirements to ensure it overwrites standard torch
-python3 -m pip install --pre --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu124
 ```
 
 **检查安装结果** (可单独运行确认)：

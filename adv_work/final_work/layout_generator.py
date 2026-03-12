@@ -3,25 +3,64 @@ import os
 import json
 import re
 import time
+import random
 from google import genai
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+def is_interaction_prompt(prompt):
+    text = prompt.lower()
+    keywords = [
+        "hug", "kiss", "embrace", "hold hands", "holding hands", "handshake",
+        "carry", "carries", "riding", "ride", "piggyback", "high five",
+        "dancing", "dance", "arm in arm", "leaning on", "sitting closely"
+    ]
+    return any(k in text for k in keywords)
+
+def generate_interaction_layout(num_subjects, height, width, seed_text):
+    rng = random.Random(hash(seed_text) & 0xffffffff)
+    base_w = max(120, width // 3)
+    base_h = max(120, height // 3)
+    center_x = width // 2
+    center_y = height // 2
+    jitter_x = width // 6
+    jitter_y = height // 6
+    bboxes = []
+    for _ in range(num_subjects):
+        cx = center_x + rng.randint(-jitter_x, jitter_x)
+        cy = center_y + rng.randint(-jitter_y, jitter_y)
+        w = base_w + rng.randint(-base_w // 5, base_w // 5)
+        h = base_h + rng.randint(-base_h // 5, base_h // 5)
+        x1 = max(0, cx - w // 2)
+        y1 = max(0, cy - h // 2)
+        x2 = min(width, cx + w // 2)
+        y2 = min(height, cy + h // 2)
+        if x2 <= x1:
+            x2 = min(width, x1 + 50)
+        if y2 <= y1:
+            y2 = min(height, y1 + 50)
+        bboxes.append([y1, x1, y2, x2])
+    return bboxes
+
 def generate_layout(prompt, num_subjects, height=512, width=512, retries=3):
     """
     Generates bounding boxes for subjects using Gemini-3-flash-preview.
     """
     api_key = os.getenv("GOOGLE_API_KEY")
+    interaction = is_interaction_prompt(prompt)
     if not api_key:
         print("Warning: GOOGLE_API_KEY not found in environment. Using fallback grid layout.")
+        if interaction:
+            return generate_interaction_layout(num_subjects, height, width, prompt)
         return generate_grid_layout(num_subjects, height, width)
 
     for attempt in range(retries):
         try:
             client = genai.Client(api_key=api_key)
             
+            overlap_hint = "Allow overlapping boxes and keep them close." if interaction else "Avoid overlap and keep boxes separated."
             system_instruction = f"""
 You are an expert image layout planner. Your task is to generate bounding boxes for {num_subjects} subjects in a {height}x{width} canvas based on a text prompt.
 The output must be a valid JSON object where keys are subject indices (0 to {num_subjects-1}) and values are [y_min, x_min, y_max, x_max].
@@ -29,6 +68,7 @@ Coordinates must be integers within the canvas range [0, {height}] and [0, {widt
 y_min must be less than y_max, and x_min must be less than x_max.
 If the prompt implies interaction (e.g., hugging, riding), boxes should overlap appropriately.
 If the prompt implies separation (e.g., side by side), boxes should not overlap significantly.
+{overlap_hint}
 Do not output any markdown formatting, code blocks, or explanation. Just return the raw JSON string.
 """
 
@@ -82,6 +122,8 @@ Do not output any markdown formatting, code blocks, or explanation. Just return 
             time.sleep(1) # Wait a bit before retry
     
     print("All attempts failed. Falling back to grid layout.")
+    if interaction:
+        return generate_interaction_layout(num_subjects, height, width, prompt)
     return generate_grid_layout(num_subjects, height, width)
 
 def generate_grid_layout(num_subjects, height, width):

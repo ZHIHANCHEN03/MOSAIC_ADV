@@ -98,34 +98,40 @@ def evaluate_case(case, result_image_path, dino_model, clip_model, clip_processo
     
     # 2. Identity Score (Local if layout available, Global otherwise)
     identity_scores = []
-    
-    for i, ref_path in enumerate(ref_image_paths):
+    ref_embeddings = []
+    for ref_path in ref_image_paths:
         if not os.path.exists(ref_path):
+            ref_embeddings.append(None)
+            continue
+        ref_tensor = preprocess_image(ref_path)
+        ref_embeddings.append(get_dino_embedding(dino_model, ref_tensor, device))
+    gen_embeddings = []
+    for i in range(len(ref_image_paths)):
+        if layout and i < len(layout):
+            bbox = layout[i]
+            target_img = crop_image(result_image_path, bbox)
+        else:
+            target_img = Image.open(result_image_path).convert('RGB')
+        gen_tensor = preprocess_image(target_img)
+        gen_embeddings.append(get_dino_embedding(dino_model, gen_tensor, device))
+    for i, ref_emb in enumerate(ref_embeddings):
+        if ref_emb is None:
             identity_scores.append(0.0)
             continue
-
-        ref_tensor = preprocess_image(ref_path)
-        ref_dino_emb = get_dino_embedding(dino_model, ref_tensor, device)
-        
-        # Determine target image region
-        target_img = None
-        if layout and i < len(layout):
-            # Use crop
-            bbox = layout[i] # [y1, x1, y2, x2]
-            target_img = crop_image(result_image_path, bbox)
-            # print(f"  Debug: Cropping subject {i} with {bbox}")
-        else:
-            # Use full image
-            target_img = Image.open(result_image_path).convert('RGB')
-            
-        gen_tensor = preprocess_image(target_img)
-        gen_dino_emb = get_dino_embedding(dino_model, gen_tensor, device)
-        
-        sim = torch.mm(gen_dino_emb, ref_dino_emb.T).item()
+        sim = torch.mm(gen_embeddings[i], ref_emb.T).item()
         identity_scores.append(sim)
             
     metrics['identity_scores'] = identity_scores
     metrics['avg_identity_score'] = sum(identity_scores) / len(identity_scores) if identity_scores else 0
+    leakage_scores = []
+    if layout:
+        for i, gen_emb in enumerate(gen_embeddings):
+            for j, ref_emb in enumerate(ref_embeddings):
+                if i == j or ref_emb is None:
+                    continue
+                leakage_scores.append(torch.mm(gen_emb, ref_emb.T).item())
+    metrics['leakage_scores'] = leakage_scores
+    metrics['avg_leakage_score'] = sum(leakage_scores) / len(leakage_scores) if leakage_scores else None
     return metrics
 
 def main():
@@ -187,8 +193,11 @@ def main():
     if all_metrics:
         avg_clip = sum(m['clip_score'] for m in all_metrics) / len(all_metrics)
         avg_id = sum(m['avg_identity_score'] for m in all_metrics) / len(all_metrics)
+        leakage_values = [m['avg_leakage_score'] for m in all_metrics if m.get('avg_leakage_score') is not None]
         
         summary = {"avg_clip": avg_clip, "avg_identity": avg_id}
+        if leakage_values:
+            summary["avg_leakage"] = sum(leakage_values) / len(leakage_values)
         print("\n=== Summary ===")
         print(summary)
         
