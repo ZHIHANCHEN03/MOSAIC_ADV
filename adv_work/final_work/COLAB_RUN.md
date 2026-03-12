@@ -15,7 +15,7 @@ set -euo pipefail
 
 # 1. Clone Repo
 if [ ! -d "MOSAIC_ADV" ]; then
-  git clone https://github.com/ByteDance-FanQie/MOSAIC.git MOSAIC_ADV
+  git clone https://github.com/ZHIHANCHEN03/MOSAIC_ADV.git MOSAIC_ADV
 fi
 cd MOSAIC_ADV
 
