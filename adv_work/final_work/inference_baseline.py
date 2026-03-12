@@ -1,97 +1,100 @@
 import os
+import sys
 import json
-import argparse
 import torch
-from diffusers import FluxPipeline
+import argparse
+from torchvision import transforms
 from PIL import Image
+from diffusers import FluxPipeline
+
+# Ensure we can import from root
+sys.path.append(os.getcwd())
 
 from src.flux_omini import Condition, generate
 from utils import process_image
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json_path", type=str, default="example_cases.json")
+    parser.add_argument("--output_dir", type=str, default="./outputs")
+    args = parser.parse_args()
 
-def run_inference(pipe, args):
-    with open(args.json_path, "r", encoding="utf-8") as f:
-        data_list = json.load(f)
+    device = "cuda"
+    dtype = torch.bfloat16
+
+    print(f"Loading Flux Pipeline...")
+    pipe = FluxPipeline.from_pretrained(
+        "black-forest-labs/FLUX.1-dev", 
+        torch_dtype=torch.bfloat16
+    ).to(device)
+
+    # Load MOSAIC LoRA
+    pipe.load_lora_weights(
+        "ByteDance-FanQie/MOSAIC",
+        weight_name=f"subject_512.safetensors",
+        adapter_name="subject"
+    )
+    pipe.set_adapters(["subject"], [1])
+
+    max_num_refs = 6
+    ref_size = 512
+    height = 512
+    width = 512
+    guidance_scale = 3.5
 
     os.makedirs(args.output_dir, exist_ok=True)
 
+    with open(args.json_path, 'r', encoding='utf-8') as f:
+        data_list = json.load(f)
+
+    print(f"Processing {len(data_list)} cases from {args.json_path}")
+
     for item in data_list:
-        index = item["index"]
-        prompt = item["prompt"]
-        image_paths = item["image_paths"]
+        index = item.get('index', 0)
+        prompt = item.get('prompt', "")
+        print(f"[{index}] Prompt: {prompt}")
+        
+        image_paths = item.get('image_paths', [])
         if isinstance(image_paths, str):
             image_paths = [image_paths]
-
+            
         ref_imgs = []
         for img_path in image_paths:
             if os.path.exists(img_path):
-                pil_img = process_image(
-                    img_path, target_size=args.ref_size, pad_color=(255, 255, 255), scale=0.9
-                )
+                pil_img = process_image(img_path, target_size=ref_size, pad_color=(255,255,255), scale=0.9)
             else:
-                pil_img = Image.new("RGB", (args.ref_size, args.ref_size), (0, 0, 0))
-                print(f"{img_path} not exists, all black")
+                pil_img = Image.new("RGB", (ref_size, ref_size), (0,0,0))
+                print(f"Warning: {img_path} not found, using black image")
             ref_imgs.append(pil_img)
 
-        if not ref_imgs:
-            continue
-
-        # Keep baseline simple and consistent with original inference.py behavior.
-        position_deltas = [[0, 0] for _ in range(len(ref_imgs))]
-        conditions = [
-            Condition(appearance, "subject", position_deltas[i])
-            for i, appearance in enumerate(ref_imgs)
-        ]
-
-        print(f"[Baseline] Generating Case {index} with {len(conditions)} subjects...")
+        # Basic linear positioning for baseline (just stacking conditions)
+        position_deltas = []
+        for i in range(len(ref_imgs)):
+            position_deltas.append([0, -(ref_size * (i + 1)) // 16])
+            
+        conditions = [Condition(appearance, "subject", position_deltas[i]) for i, appearance in enumerate(ref_imgs)]
+        
         with torch.no_grad():
             result = generate(
                 pipe,
                 prompt=prompt,
                 conditions=conditions,
-                num_inference_steps=args.num_inference_steps,
+                num_inference_steps=28,
                 num_images_per_prompt=1,
-                height=args.height,
-                width=args.width,
-                guidance_scale=args.guidance_scale,
-                generator=torch.Generator(pipe.device).manual_seed(args.seed),
+                height=height,
+                width=width,
+                guidance_scale=guidance_scale,
+                generator=torch.Generator("cuda").manual_seed(42),
             )[0]
-
+            
         if len(result) == 0:
-            print(f"warning: empty result for {index}")
+            print(f"Warning: empty result for {index}")
             continue
-
-        out_path = os.path.join(
-            args.output_dir, f"{index}_cfg_{args.guidance_scale}_{args.height}x{args.width}.jpg"
-        )
-        result[0].save(out_path)
-        print(f"Saved to {out_path}")
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--json_path", type=str, default="scaling_experiment.json")
-    parser.add_argument("--output_dir", type=str, default="./outputs_baseline")
-    parser.add_argument("--height", type=int, default=512)
-    parser.add_argument("--width", type=int, default=512)
-    parser.add_argument("--ref_size", type=int, default=512)
-    parser.add_argument("--num_inference_steps", type=int, default=28)
-    parser.add_argument("--guidance_scale", type=float, default=3.5)
-    parser.add_argument("--seed", type=int, default=42)
-    args = parser.parse_args()
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    pipe = FluxPipeline.from_pretrained(
-        "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
-    ).to(device)
-    pipe.load_lora_weights(
-        "ByteDance-FanQie/MOSAIC", weight_name="subject_512.safetensors", adapter_name="subject"
-    )
-    pipe.set_adapters(["subject"], [1])
-
-    run_inference(pipe, args)
-
+            
+        result_img = result[0]
+        result_img_path = os.path.join(args.output_dir, f"{index}_cfg_{guidance_scale}_{height}x{width}.jpg")
+        result_img.save(result_img_path)
+        print(f"Saved result to {result_img_path}")
 
 if __name__ == "__main__":
     main()
-
