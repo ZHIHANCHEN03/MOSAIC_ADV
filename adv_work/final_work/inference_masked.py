@@ -1,3 +1,4 @@
+
 import os
 import json
 import torch
@@ -36,7 +37,10 @@ def create_soft_mask(bboxes, height, width, downsample_ratio=16, kernel_size=15)
             
     # Apply Gaussian Blur for Soft Edges
     # We treat each channel independently
-    masks = TF.gaussian_blur(masks, kernel_size=kernel_size)
+    if kernel_size > 0:
+        # Ensure kernel size is odd
+        if kernel_size % 2 == 0: kernel_size += 1
+        masks = TF.gaussian_blur(masks, kernel_size=kernel_size)
     
     # Flatten spatial dims: [Num_Subjects, Seq_Len] -> [Seq_Len, Num_Subjects]
     masks = masks.flatten(1).transpose(0, 1)
@@ -222,6 +226,8 @@ def run_inference(pipe, args):
     install_spatial_attn_patch(penalty_strength=args.penalty_strength)
     import src.flux_omini_mosaic as mosaic
     
+    layout_results = {} # Store layouts for evaluation
+    
     for item in data_list:
         index = item['index']
         prompt = item['prompt']
@@ -240,8 +246,11 @@ def run_inference(pipe, args):
         print(f"Generating Layout for Case {index} ({len(ref_imgs)} subjects)...")
         bboxes = generate_layout(prompt, len(ref_imgs), 512, 512)
         
+        # Save layout for this case
+        layout_results[str(index)] = bboxes
+        
         # 2. Create Soft Mask
-        mask = create_soft_mask(bboxes, 512, 512).to(pipe.device)
+        mask = create_soft_mask(bboxes, 512, 512, kernel_size=args.kernel_size).to(pipe.device)
         
         # 3. Publish Mask to Mosaic module (so patched attn_forward can see it)
         mosaic.SPATIAL_MASK = mask
@@ -268,12 +277,19 @@ def run_inference(pipe, args):
         
         # Cleanup mask for next iteration
         mosaic.SPATIAL_MASK = None
+    
+    # Save all layouts to disk for eval.py
+    layout_path = os.path.join(args.output_dir, "layout_results.json")
+    with open(layout_path, 'w') as f:
+        json.dump(layout_results, f, indent=4)
+    print(f"Saved generated layouts to {layout_path}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--json_path", type=str, default="scaling_experiment.json")
     parser.add_argument("--output_dir", type=str, default="./outputs_ours")
-    parser.add_argument("--penalty_strength", type=float, default=10.0)
+    parser.add_argument("--penalty_strength", type=float, default=10.0, help="Strength of attention masking penalty")
+    parser.add_argument("--kernel_size", type=int, default=15, help="Gaussian blur kernel size for soft mask")
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
     

@@ -66,7 +66,25 @@ def get_clip_score(model, processor, image, text, device):
         score = torch.matmul(image_embeds, text_embeds.T).item()
         return score
 
-def evaluate_case(case, result_image_path, dino_model, clip_model, clip_processor, device):
+def crop_image(image_path, bbox):
+    """
+    Crops image based on bbox [y1, x1, y2, x2].
+    """
+    img = Image.open(image_path).convert('RGB')
+    # bbox is [y1, x1, y2, x2] (top, left, bottom, right) in numpy-style
+    # PIL expects (left, top, right, bottom) -> (x1, y1, x2, y2)
+    y1, x1, y2, x2 = bbox
+    # Ensure bounds
+    w, h = img.size
+    x1, y1 = max(0, x1), max(0, y1)
+    x2, y2 = min(w, x2), min(h, y2)
+    
+    if x2 <= x1 or y2 <= y1:
+        return img # Fallback to full image if box invalid
+        
+    return img.crop((x1, y1, x2, y2))
+
+def evaluate_case(case, result_image_path, dino_model, clip_model, clip_processor, device, layout=None):
     metrics = {}
     prompt = case.get('prompt', '')
     ref_image_paths = case.get('image_paths', [])
@@ -75,20 +93,36 @@ def evaluate_case(case, result_image_path, dino_model, clip_model, clip_processo
     if not os.path.exists(result_image_path):
         return None
 
+    # 1. CLIP Score (Global Alignment)
     metrics['clip_score'] = get_clip_score(clip_model, clip_processor, result_image_path, prompt, device)
     
-    gen_img_tensor = preprocess_image(result_image_path)
-    gen_dino_emb = get_dino_embedding(dino_model, gen_img_tensor, device)
-    
+    # 2. Identity Score (Local if layout available, Global otherwise)
     identity_scores = []
-    for ref_path in ref_image_paths:
-        if os.path.exists(ref_path):
-            ref_tensor = preprocess_image(ref_path)
-            ref_dino_emb = get_dino_embedding(dino_model, ref_tensor, device)
-            sim = torch.mm(gen_dino_emb, ref_dino_emb.T).item()
-            identity_scores.append(sim)
-        else:
+    
+    for i, ref_path in enumerate(ref_image_paths):
+        if not os.path.exists(ref_path):
             identity_scores.append(0.0)
+            continue
+
+        ref_tensor = preprocess_image(ref_path)
+        ref_dino_emb = get_dino_embedding(dino_model, ref_tensor, device)
+        
+        # Determine target image region
+        target_img = None
+        if layout and i < len(layout):
+            # Use crop
+            bbox = layout[i] # [y1, x1, y2, x2]
+            target_img = crop_image(result_image_path, bbox)
+            # print(f"  Debug: Cropping subject {i} with {bbox}")
+        else:
+            # Use full image
+            target_img = Image.open(result_image_path).convert('RGB')
+            
+        gen_tensor = preprocess_image(target_img)
+        gen_dino_emb = get_dino_embedding(dino_model, gen_tensor, device)
+        
+        sim = torch.mm(gen_dino_emb, ref_dino_emb.T).item()
+        identity_scores.append(sim)
             
     metrics['identity_scores'] = identity_scores
     metrics['avg_identity_score'] = sum(identity_scores) / len(identity_scores) if identity_scores else 0
@@ -112,7 +146,17 @@ def main():
 
     with open(args.json_path, 'r') as f:
         cases = json.load(f)
-        
+    
+    # Check for layout_results.json
+    layout_path = os.path.join(args.output_dir, "layout_results.json")
+    layouts = {}
+    if os.path.exists(layout_path):
+        print(f"Found layout file: {layout_path}. Will use for Local Identity Score.")
+        with open(layout_path, 'r') as f:
+            layouts = json.load(f)
+    else:
+        print("No layout file found. Using Global Identity Score.")
+
     all_metrics = []
     print(f"Evaluating {len(cases)} cases...")
     
@@ -128,11 +172,17 @@ def main():
             continue
             
         result_image_path = result_files[0]
-        metrics = evaluate_case(case, result_image_path, dino_model, clip_model, clip_processor, device)
+        
+        # Get layout for this case if available
+        # Keys in JSON are strings
+        case_layout = layouts.get(str(index)) or layouts.get(index)
+        
+        metrics = evaluate_case(case, result_image_path, dino_model, clip_model, clip_processor, device, layout=case_layout)
         if metrics:
             metrics['index'] = index
             all_metrics.append(metrics)
-            print(f"Case {index}: CLIP={metrics['clip_score']:.3f}, ID={metrics['avg_identity_score']:.3f}")
+            layout_info = "(Local)" if case_layout else "(Global)"
+            print(f"Case {index}: CLIP={metrics['clip_score']:.3f}, ID{layout_info}={metrics['avg_identity_score']:.3f}")
 
     if all_metrics:
         avg_clip = sum(m['clip_score'] for m in all_metrics) / len(all_metrics)

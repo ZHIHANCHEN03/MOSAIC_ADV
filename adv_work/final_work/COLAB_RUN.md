@@ -6,21 +6,47 @@
 
 ---
 
-### Cell 1: 初始化环境 (Clone & Install)
+### Cell 1: 初始化环境 (Blackwell/sm_120 Compatibility)
+**注意**：为了兼容 Blackwell GPU (sm_120) 并避免 `no kernel image` 错误，我们会强制安装 PyTorch Nightly，并移除 `deepspeed` (仅推理不需要，且会导致编译失败)。
+
+**运行完此 Cell 后，如果系统提示 "Restart Session"，请务必点击重启！**
+
 ```bash
 %%bash
 set -euo pipefail
 
-# 1. Clone Repo (如果不存在)
+# 1. Clone Repo
 if [ ! -d "MOSAIC_ADV" ]; then
   git clone https://github.com/ZHIHANCHEN03/MOSAIC_ADV.git MOSAIC_ADV
 fi
-
-# 2. Install Dependencies
 cd MOSAIC_ADV
+
+# 2. Modify requirements.txt for compatibility
+# (a) Unpin torch version (allow upgrade)
+sed -i 's/torch==2.4.1/torch/' requirements.txt
+# (b) Remove deepspeed (inference only, avoids build errors on Nightly)
+sed -i '/deepspeed/d' requirements.txt
+
+# 3. Install Dependencies (Standard)
 python3 -m pip install -U pip
+# Install without deepspeed first
 python3 -m pip install -r requirements.txt
 python3 -m pip install google-generativeai python-dotenv
+
+# 4. Force Upgrade to PyTorch Nightly (Supports sm_120 / Blackwell)
+# Must be done AFTER requirements to ensure it overwrites standard torch
+python3 -m pip install --pre --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu124
+```
+
+**检查安装结果** (可单独运行确认)：
+```python
+import torch
+print(f"PyTorch Version: {torch.__version__}")
+if torch.cuda.is_available():
+    print(f"Device: {torch.cuda.get_device_name(0)}")
+    print(f"Capability: {torch.cuda.get_device_capability(0)}")
+else:
+    print("WARNING: CUDA not available!")
 ```
 
 ---
