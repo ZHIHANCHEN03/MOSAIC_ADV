@@ -16,3 +16,6 @@ tensorboard
 numpy==1.26.4
 pandas
 matplotlib
+python-dotenv
+google-genai
+certifi

@@ -14,17 +14,10 @@ python3 generate_test_cases.py
 
 # 3. Run Baseline (Vanilla MOSAIC)
 echo "Step 3: Running Baseline (Vanilla MOSAIC)..."
-# We use the original inference.py but point it to our new json and output dir
-# Note: Original inference.py might need modification to accept args, 
-# or we just use a simple wrapper here.
-# Assuming we can run a vanilla version of inference_masked.py without the mask patch.
-# For simplicity, let's just run inference_masked.py but DISABLE the mask injection logic via a flag or separate script.
-# Or better: We create a baseline script that is just the original inference logic.
-# Let's assume inference.py in root is vanilla.
 cd ../../
-python3 inference.py --json_path adv_work/final_work/scaling_experiment.json --output_dir outputs/baseline
-# Note: Original inference.py might not support args. If not, we might need to patch it or copy it.
-# If inference.py is hardcoded, we should use a copy.
+python3 adv_work/final_work/inference_baseline.py \
+  --json_path adv_work/final_work/scaling_experiment.json \
+  --output_dir outputs/baseline
 
 # 4. Run Ours (Spatial-Aware Attention Masking)
 echo "Step 4: Running Ours (Spatial-Aware Attention Masking)..."

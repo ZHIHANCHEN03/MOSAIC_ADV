@@ -7,7 +7,6 @@ from diffusers import FluxPipeline
 from src.flux_omini import Condition, generate
 from utils import process_image
 import argparse
-from types import MethodType
 from layout_generator import generate_layout
 
 # ------------------------------------------------------------------------------
@@ -44,164 +43,184 @@ def create_soft_mask(bboxes, height, width, downsample_ratio=16, kernel_size=15)
     
     return masks
 
-def masked_attn_forward(
-    self,
-    attn,
-    hidden_states,
-    adapters,
-    hidden_states2=[],
-    position_embs=None,
-    group_mask=None,
-    **kwargs,
-):
+def install_spatial_attn_patch(penalty_strength: float = 10.0):
     """
-    Patched attn_forward with Spatial Mask Injection.
+    Monkey-patch `src.flux_omini_mosaic.attn_forward` with a version that injects an
+    additive attention bias for the *image query branch* attending to *condition/ref branches*,
+    using a latent-level spatial mask.
+
+    The spatial mask is read from `src.flux_omini_mosaic.SPATIAL_MASK` and should have shape:
+      [image_seq_len, num_subjects]
+    where `num_subjects == number of conditions` in the current generation call.
     """
-    # ... Standard Flux Attention Logic ...
-    bs, _, _ = hidden_states[0].shape
-    h2_n = len(hidden_states2)
+    import math
+    import src.flux_omini_mosaic as mosaic
 
-    queries, keys, values = [], [], []
+    if getattr(mosaic, "_SPATIAL_ATTN_PATCH_INSTALLED", False):
+        return
 
-    # Text Branch
-    for i, hidden_state in enumerate(hidden_states2):
-        query = attn.add_q_proj(hidden_state)
-        key = attn.add_k_proj(hidden_state)
-        value = attn.add_v_proj(hidden_state)
-        head_dim = key.shape[-1] // attn.heads
-        reshape_fn = lambda x: x.view(bs, -1, attn.heads, head_dim).transpose(1, 2)
-        query, key, value = map(reshape_fn, (query, key, value))
-        query, key = attn.norm_added_q(query), attn.norm_added_k(key)
-        queries.append(query)
-        keys.append(key)
-        values.append(value)
+    from diffusers.models.embeddings import apply_rotary_emb
 
-    # Image Branch
-    for i, hidden_state in enumerate(hidden_states):
-        # Note: In real training code, lora context is used. Here we assume weights are merged or handled.
-        query = attn.to_q(hidden_state)
-        key = attn.to_k(hidden_state)
-        value = attn.to_v(hidden_state)
-        head_dim = key.shape[-1] // attn.heads
-        reshape_fn = lambda x: x.view(bs, -1, attn.heads, head_dim).transpose(1, 2)
-        query, key, value = map(reshape_fn, (query, key, value))
-        queries.append(query)
-        keys.append(key)
-        values.append(value)
+    orig_specify_lora = mosaic.specify_lora
 
-    # Concat
-    query = torch.cat(queries, dim=2)
-    key = torch.cat(keys, dim=2)
-    value = torch.cat(values, dim=2)
+    def _masked_attn_forward(
+        attn,
+        hidden_states,
+        adapters,
+        hidden_states2=[],
+        position_embs=None,
+        group_mask=None,
+        cache_mode=None,
+        to_cache=None,
+        cache_storage=None,
+        get_attn_maps=False,
+        **kwargs,
+    ):
+        bs, _, _ = hidden_states[0].shape
+        h2_n = len(hidden_states2)
 
-    # Attention Scores: [BS, Heads, Q_Len, K_Len]
-    attn_score = torch.matmul(query, key.transpose(-2, -1)) / (query.shape[-1] ** 0.5)
+        queries, keys, values = [], [], []
 
-    # --- INJECT MASK ---
-    # We access the mask from the transformer instance
-    spatial_mask = getattr(self, "spatial_mask", None)
-    
-    if spatial_mask is not None:
-        # spatial_mask: [Img_Seq_Len, Num_Subjects]
-        # We need to map it to [BS, Heads, Q_Len, K_Len]
-        # Key Structure: [Text(512) | Img(1024) | Ref1(256) | Ref2(256) ...]
-        
-        # Assume standard sizes
-        txt_len = 512
-        img_len = 1024 # 32x32 latent for 512x512 img (Flux uses H//16)
-        ref_len = 256  # 512x512 ref -> scaled down? Check flux_omini logic. 
-                       # Usually Ref is encoded to tokens. Let's assume 256 for now or derive it.
-        
-        # Actually, let's look at the keys shape
-        total_k_len = key.shape[-2]
-        
-        # We only want to mask: Image Query -> Reference Key
-        # Image Query Indices: [txt_len : txt_len + img_len]
-        # Reference Key Indices: [txt_len + img_len : ]
-        
-        num_subjects = spatial_mask.shape[1]
-        
-        # Calculate Ref Token Count per Subject
-        # Total Ref Tokens = total_k_len - txt_len - img_len
-        # Assuming equal tokens per subject
-        start_ref_idx = txt_len + img_len
-        if start_ref_idx < total_k_len:
-            tokens_per_ref = (total_k_len - start_ref_idx) // num_subjects
-            
-            # Expand Mask to [1, 1, Img_Len, Total_K_Len]
-            # Init with 0 (No penalty)
-            mask_bias = torch.zeros((1, 1, img_len, total_k_len), device=attn_score.device, dtype=attn_score.dtype)
-            
-            penalty = -10.0 # Soft Penalty
-            
-            for i in range(num_subjects):
-                # Get subject mask: [Img_Len] -> (0.0 to 1.0)
-                subj_mask = spatial_mask[:, i] # [Img_Len]
-                
-                # We want to PENALIZE regions where mask is LOW.
-                # bias = (mask - 1.0) * penalty_strength (positive value) -> This encourages attention?
-                # No, we want to Discourage attention where mask is 0.
-                # So if mask=1, bias=0. If mask=0, bias=-10.
-                # Formula: (mask - 1.0) * abs(penalty)
-                
-                subj_bias = (subj_mask - 1.0) * abs(penalty) # [Img_Len]
-                
-                # Apply to corresponding Ref Tokens
-                ref_start = start_ref_idx + i * tokens_per_ref
-                ref_end = ref_start + tokens_per_ref
-                
-                # Broadcast bias to [1, 1, Img_Len, Ref_Tokens_i]
-                mask_bias[:, :, :, ref_start:ref_end] = subj_bias.view(1, 1, -1, 1)
-                
-            # Apply Bias to Attention Score
-            # attn_score slice: [:, :, txt_len:txt_len+img_len, :]
-            # We need to match Q indices
-            attn_score[:, :, txt_len:txt_len+img_len, :] += mask_bias
+        # Text branch
+        for hidden_state in hidden_states2:
+            query = attn.add_q_proj(hidden_state)
+            key = attn.add_k_proj(hidden_state)
+            value = attn.add_v_proj(hidden_state)
 
-    attn_probs = torch.softmax(attn_score, dim=-1)
-    attn_output = torch.matmul(attn_probs, value)
-    
-    # Reshape output ... (Standard Flux Logic)
-    attn_output = attn_output.transpose(1, 2).reshape(bs, -1, attn.heads * head_dim)
-    
-    # Split back
-    h_out, h2_out = [], []
-    # Text
-    idx = 0
-    for i in range(len(hidden_states2)):
-        h2_out.append(attn.to_add_out(attn_output[:, idx:idx+hidden_states2[i].shape[1]]))
-        idx += hidden_states2[i].shape[1]
-    # Image
-    for i in range(len(hidden_states)):
-        # Skip refs in output
-        h = attn_output[:, idx:idx+hidden_states[i].shape[1]]
-        if getattr(attn, "to_out", None) is not None:
-             h = attn.to_out[0](h) # Simplified projection
-        h_out.append(h)
-        idx += hidden_states[i].shape[1]
+            head_dim = key.shape[-1] // attn.heads
+            reshape_fn = lambda x: x.view(bs, -1, attn.heads, head_dim).transpose(1, 2)
+            query, key, value = map(reshape_fn, (query, key, value))
+            query, key = attn.norm_added_q(query), attn.norm_added_k(key)
 
-    return (h_out, h2_out) if h2_n else h_out
+            queries.append(query)
+            keys.append(key)
+            values.append(value)
+
+        # Image + condition branches
+        for i, hidden_state in enumerate(hidden_states):
+            with orig_specify_lora((attn.to_q, attn.to_k, attn.to_v), adapters[i + h2_n]):
+                query = attn.to_q(hidden_state)
+                key = attn.to_k(hidden_state)
+                value = attn.to_v(hidden_state)
+
+            head_dim = key.shape[-1] // attn.heads
+            reshape_fn = lambda x: x.view(bs, -1, attn.heads, head_dim).transpose(1, 2)
+            query, key, value = map(reshape_fn, (query, key, value))
+            query, key = attn.norm_q(query), attn.norm_k(key)
+
+            queries.append(query)
+            keys.append(key)
+            values.append(value)
+
+        if position_embs is not None:
+            queries = [apply_rotary_emb(q, position_embs[i]) for i, q in enumerate(queries)]
+            keys = [apply_rotary_emb(k, position_embs[i]) for i, k in enumerate(keys)]
+
+        if cache_mode == "write":
+            for i, (k, v) in enumerate(zip(keys, values)):
+                if to_cache[i]:
+                    cache_storage[attn.cache_idx][0].append(k)
+                    cache_storage[attn.cache_idx][1].append(v)
+
+        if get_attn_maps:
+            # Keep compatibility: this mode is used elsewhere for visualization.
+            attn_maps = []
+            key_img = keys[1]
+
+        attn_outputs = []
+        spatial_mask = getattr(mosaic, "SPATIAL_MASK", None)
+
+        for i, query in enumerate(queries):
+            keys_, values_ = [], []
+            branch_k_meta = []  # list of (branch_index, k_len)
+
+            for j, (k, v) in enumerate(zip(keys, values)):
+                if (group_mask is not None) and not (group_mask[i][j].item()):
+                    continue
+                keys_.append(k)
+                values_.append(v)
+                branch_k_meta.append((j, k.shape[2]))
+
+            if cache_mode == "read":
+                keys_.extend(cache_storage[attn.cache_idx][0])
+                values_.extend(cache_storage[attn.cache_idx][1])
+
+            k_cat = torch.cat(keys_, dim=2)
+            v_cat = torch.cat(values_, dim=2)
+
+            attn_mask = None
+            # Inject only for: image-query branch (index 1) attending to condition branches (>=2)
+            if spatial_mask is not None and i == 1:
+                num_subjects = spatial_mask.shape[1]
+                # condition branches are expected to be 2..(2+num_subjects-1)
+                bias_chunks = []
+                img_seq_len = query.shape[2]
+                if spatial_mask.shape[0] == img_seq_len and num_subjects > 0:
+                    cursor = 0
+                    for (branch_idx, k_len) in branch_k_meta:
+                        if branch_idx >= 2:
+                            subj_idx = branch_idx - 2
+                            if 0 <= subj_idx < num_subjects:
+                                subj_mask = spatial_mask[:, subj_idx].to(device=query.device, dtype=query.dtype)
+                                # mask=1 -> bias 0 ; mask=0 -> bias = -penalty_strength
+                                subj_bias = (subj_mask - 1.0) * float(penalty_strength)  # [img_seq_len]
+                                bias_chunks.append(subj_bias.view(1, 1, -1, 1).expand(1, 1, img_seq_len, k_len))
+                            else:
+                                bias_chunks.append(torch.zeros((1, 1, img_seq_len, k_len), device=query.device, dtype=query.dtype))
+                        else:
+                            bias_chunks.append(torch.zeros((1, 1, img_seq_len, k_len), device=query.device, dtype=query.dtype))
+                        cursor += k_len
+
+                    if bias_chunks:
+                        attn_mask = torch.cat(bias_chunks, dim=-1)  # [1,1,Q,K]
+
+            # Use torch SDPA if no mask, else manual attention for additive mask.
+            if attn_mask is None:
+                attn_output = mosaic.F.scaled_dot_product_attention(query, k_cat, v_cat).to(query.dtype)
+            else:
+                scale = 1.0 / math.sqrt(head_dim)
+                scores = torch.matmul(query, k_cat.transpose(-2, -1)) * scale  # [bs,h,Q,K]
+                scores = scores + attn_mask.to(dtype=scores.dtype, device=scores.device)
+                probs = torch.softmax(scores, dim=-1)
+                attn_output = torch.matmul(probs, v_cat).to(query.dtype)
+
+            attn_output = attn_output.transpose(1, 2).reshape(bs, -1, attn.heads * head_dim)
+            attn_outputs.append(attn_output)
+
+            if get_attn_maps and i >= 2:
+                attn_score = torch.einsum("bhnd,bhmd->bhnm", query, key_img)
+                attn_map = mosaic.F.softmax(attn_score / (head_dim ** 0.5), dim=-1)
+                attn_map = attn_map.mean(dim=1)
+                attn_maps.append(attn_map)
+
+        h_out, h2_out = [], []
+        for i in range(len(hidden_states2)):
+            h2_out.append(attn.to_add_out(attn_outputs[i]))
+
+        for i in range(len(hidden_states)):
+            h = attn_outputs[i + h2_n]
+            if getattr(attn, "to_out", None) is not None:
+                with orig_specify_lora((attn.to_out[0],), adapters[i + h2_n]):
+                    h = attn.to_out[0](h)
+            h_out.append(h)
+
+        if get_attn_maps:
+            attn_maps = torch.cat(attn_maps, dim=1) if len(attn_maps) else torch.empty(0, device=query.device)
+            return (h_out, h2_out, attn_maps) if h2_n else (h_out, attn_maps)
+
+        return (h_out, h2_out) if h2_n else h_out
+
+    mosaic.attn_forward = _masked_attn_forward
+    mosaic._SPATIAL_ATTN_PATCH_INSTALLED = True
 
 
 def run_inference(pipe, args):
     with open(args.json_path, 'r') as f:
         data_list = json.load(f)
 
-    # Patch the Transformer
-    # We bind the custom forward method to the transformer instance
-    # Note: This is a hacky way to patch. In production, we'd subclass or use hooks.
-    # But for a script, it works.
-    # We need to patch `attn_forward` inside `src.flux_omini_mosaic`. 
-    # But `transformer_forward` calls `attn_forward` passed as argument.
-    # So we need to patch where `transformer_forward` is called or pass it.
-    
-    # The `generate` function in `src/flux_omini.py` calls `pipe.transformer(...)`
-    # FluxTransformer2DModel's forward calls `transformer_forward`.
-    # `transformer_forward` uses `attn_forward` from global scope or kwarg.
-    # We can inject it via kwargs if supported, or monkey patch the module.
-    
-    import src.flux_omini_mosaic
-    src.flux_omini_mosaic.attn_forward = masked_attn_forward # Monkey Patch Global Function
+    # Install patch once per process.
+    install_spatial_attn_patch(penalty_strength=args.penalty_strength)
+    import src.flux_omini_mosaic as mosaic
     
     for item in data_list:
         index = item['index']
@@ -224,8 +243,8 @@ def run_inference(pipe, args):
         # 2. Create Soft Mask
         mask = create_soft_mask(bboxes, 512, 512).to(pipe.device)
         
-        # 3. Attach Mask to Transformer (so patched attn_forward can see it)
-        pipe.transformer.spatial_mask = mask
+        # 3. Publish Mask to Mosaic module (so patched attn_forward can see it)
+        mosaic.SPATIAL_MASK = mask
         
         # 4. Conditions
         conditions = [Condition(img, "subject", position_delta=[0,0]) for img in ref_imgs]
@@ -248,12 +267,13 @@ def run_inference(pipe, args):
         print(f"Saved to {out_path}")
         
         # Cleanup mask for next iteration
-        pipe.transformer.spatial_mask = None
+        mosaic.SPATIAL_MASK = None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--json_path", type=str, default="scaling_experiment.json")
     parser.add_argument("--output_dir", type=str, default="./outputs_ours")
+    parser.add_argument("--penalty_strength", type=float, default=10.0)
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
     
