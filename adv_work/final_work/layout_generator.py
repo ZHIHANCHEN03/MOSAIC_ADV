@@ -75,7 +75,7 @@ Do not output any markdown formatting, code blocks, or explanation. Just return 
             user_prompt = f"Prompt: {prompt}\nCanvas Size: {height}x{width}\nNumber of Subjects: {num_subjects}\nGenerate JSON layout:"
 
             response = client.models.generate_content(
-                model="gemini-2.0-flash", 
+                model="gemini-3.0-flash-preview", 
                 contents=user_prompt,
                 config={"system_instruction": system_instruction}
             )
