@@ -244,13 +244,28 @@ def run_inference(pipe, args):
 
         # 1. Generate Layout (LLM)
         print(f"Generating Layout for Case {index} ({len(ref_imgs)} subjects)...")
-        bboxes = generate_layout(prompt, len(ref_imgs), 512, 512)
+        layout_result = generate_layout(prompt, len(ref_imgs), 512, 512)
+        if isinstance(layout_result, dict):
+            bboxes = layout_result.get("bboxes", [])
+            interaction_level = layout_result.get("interaction", "none")
+        else:
+            bboxes = layout_result
+            interaction_level = "none"
         
-        # Save layout for this case
-        layout_results[str(index)] = bboxes
+        layout_results[str(index)] = layout_result
         
-        # 2. Create Soft Mask
-        mask = create_soft_mask(bboxes, 512, 512, kernel_size=args.kernel_size).to(pipe.device)
+        kernel_size = args.kernel_size
+        alpha = 1.0
+        if interaction_level == "strong":
+            kernel_size = kernel_size + 8
+            alpha = 0.6
+        elif interaction_level == "weak":
+            kernel_size = kernel_size + 4
+            alpha = 0.8
+        
+        mask = create_soft_mask(bboxes, 512, 512, kernel_size=kernel_size).to(pipe.device)
+        if alpha < 1.0:
+            mask = mask * alpha + (1.0 - alpha)
         
         # 3. Publish Mask to Mosaic module (so patched attn_forward can see it)
         mosaic.SPATIAL_MASK = mask
@@ -279,7 +294,7 @@ def run_inference(pipe, args):
         mosaic.SPATIAL_MASK = None
     
     # Save all layouts to disk for eval.py
-    layout_path = os.path.join(args.output_dir, "layout_results.json")
+        layout_path = os.path.join(args.output_dir, "layout_results.json")
     with open(layout_path, 'w') as f:
         json.dump(layout_results, f, indent=4)
     print(f"Saved generated layouts to {layout_path}")

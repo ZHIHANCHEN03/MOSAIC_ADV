@@ -98,6 +98,8 @@ def evaluate_case(case, result_image_path, dino_model, clip_model, clip_processo
     
     # 2. Identity Score (Local if layout available, Global otherwise)
     identity_scores = []
+    if isinstance(layout, dict):
+        layout = layout.get("bboxes")
     ref_embeddings = []
     for ref_path in ref_image_paths:
         if not os.path.exists(ref_path):

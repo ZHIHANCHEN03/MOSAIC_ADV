@@ -1,0 +1,405 @@
+Step 1: Setting up directories...
+Step 2: Generating Scaling Test Cases...
+Generated 30 scaling test cases in adv_work/final_work/scaling_experiment.json
+Step 3: Running Baseline (Vanilla MOSAIC)...
+Loading Flux Pipeline...
+Processing 30 cases from adv_work/final_work/scaling_experiment.json
+[0] Prompt: 8 people dancing together.
+Saved result to outputs/baseline/0_cfg_3.5_512x512.jpg
+[1] Prompt: 8 people dancing together.
+Saved result to outputs/baseline/1_cfg_3.5_512x512.jpg
+[2] Prompt: 8 people sitting closely together and hugging.
+Saved result to outputs/baseline/2_cfg_3.5_512x512.jpg
+[3] Prompt: 8 people holding hands in a park.
+Saved result to outputs/baseline/3_cfg_3.5_512x512.jpg
+[4] Prompt: 8 people walking together in a line.
+Saved result to outputs/baseline/4_cfg_3.5_512x512.jpg
+[5] Prompt: 8 people holding hands in a park.
+Saved result to outputs/baseline/5_cfg_3.5_512x512.jpg
+[6] Prompt: 8 objects arranged in a circle on the floor.
+Saved result to outputs/baseline/6_cfg_3.5_512x512.jpg
+[7] Prompt: 8 people standing side by side for a group photo.
+Saved result to outputs/baseline/7_cfg_3.5_512x512.jpg
+[8] Prompt: 8 people dancing together.
+Saved result to outputs/baseline/8_cfg_3.5_512x512.jpg
+[9] Prompt: 8 people dancing together.
+Saved result to outputs/baseline/9_cfg_3.5_512x512.jpg
+[10] Prompt: 10 people sitting closely together and hugging.
+Saved result to outputs/baseline/10_cfg_3.5_512x512.jpg
+[11] Prompt: 10 people dancing together.
+Saved result to outputs/baseline/11_cfg_3.5_512x512.jpg
+[12] Prompt: 10 people dancing together.
+Saved result to outputs/baseline/12_cfg_3.5_512x512.jpg
+[13] Prompt: 10 people holding hands in a park.
+Saved result to outputs/baseline/13_cfg_3.5_512x512.jpg
+[14] Prompt: 10 people sitting closely together and hugging.
+Saved result to outputs/baseline/14_cfg_3.5_512x512.jpg
+[15] Prompt: 10 people dancing together.
+Saved result to outputs/baseline/15_cfg_3.5_512x512.jpg
+[16] Prompt: 10 people walking together in a line.
+Saved result to outputs/baseline/16_cfg_3.5_512x512.jpg
+[17] Prompt: 10 people sitting closely together and hugging.
+Saved result to outputs/baseline/17_cfg_3.5_512x512.jpg
+[18] Prompt: 10 people standing side by side for a group photo.
+Saved result to outputs/baseline/18_cfg_3.5_512x512.jpg
+[19] Prompt: 10 people holding hands in a park.
+Saved result to outputs/baseline/19_cfg_3.5_512x512.jpg
+[20] Prompt: 12 people dancing together.
+Saved result to outputs/baseline/20_cfg_3.5_512x512.jpg
+[21] Prompt: 12 people dancing together.
+Saved result to outputs/baseline/21_cfg_3.5_512x512.jpg
+[22] Prompt: 12 people holding hands in a park.
+Saved result to outputs/baseline/22_cfg_3.5_512x512.jpg
+[23] Prompt: 12 people holding hands in a park.
+Saved result to outputs/baseline/23_cfg_3.5_512x512.jpg
+[24] Prompt: 12 people sitting closely together and hugging.
+Saved result to outputs/baseline/24_cfg_3.5_512x512.jpg
+[25] Prompt: 12 people standing side by side for a group photo.
+Saved result to outputs/baseline/25_cfg_3.5_512x512.jpg
+[26] Prompt: A collection of 12 objects arranged on a wooden table.
+Saved result to outputs/baseline/26_cfg_3.5_512x512.jpg
+[27] Prompt: 12 people dancing together.
+Saved result to outputs/baseline/27_cfg_3.5_512x512.jpg
+[28] Prompt: 12 people holding hands in a park.
+Saved result to outputs/baseline/28_cfg_3.5_512x512.jpg
+[29] Prompt: A collection of 12 objects arranged on a wooden table.
+Saved result to outputs/baseline/29_cfg_3.5_512x512.jpg
+Step 4: Running Ours (Spatial-Aware Attention Masking)...
+Generating Layout for Case 0 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/0_cfg_3.5_512x512.jpg
+Generating Layout for Case 1 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/1_cfg_3.5_512x512.jpg
+Generating Layout for Case 2 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/2_cfg_3.5_512x512.jpg
+Generating Layout for Case 3 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/3_cfg_3.5_512x512.jpg
+Generating Layout for Case 4 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/4_cfg_3.5_512x512.jpg
+Generating Layout for Case 5 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/5_cfg_3.5_512x512.jpg
+Generating Layout for Case 6 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/6_cfg_3.5_512x512.jpg
+Generating Layout for Case 7 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/7_cfg_3.5_512x512.jpg
+Generating Layout for Case 8 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/8_cfg_3.5_512x512.jpg
+Generating Layout for Case 9 (8 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/9_cfg_3.5_512x512.jpg
+Generating Layout for Case 10 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/10_cfg_3.5_512x512.jpg
+Generating Layout for Case 11 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/11_cfg_3.5_512x512.jpg
+Generating Layout for Case 12 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/12_cfg_3.5_512x512.jpg
+Generating Layout for Case 13 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/13_cfg_3.5_512x512.jpg
+Generating Layout for Case 14 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/14_cfg_3.5_512x512.jpg
+Generating Layout for Case 15 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/15_cfg_3.5_512x512.jpg
+Generating Layout for Case 16 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/16_cfg_3.5_512x512.jpg
+Generating Layout for Case 17 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/17_cfg_3.5_512x512.jpg
+Generating Layout for Case 18 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/18_cfg_3.5_512x512.jpg
+Generating Layout for Case 19 (10 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/19_cfg_3.5_512x512.jpg
+Generating Layout for Case 20 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/20_cfg_3.5_512x512.jpg
+Generating Layout for Case 21 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/21_cfg_3.5_512x512.jpg
+Generating Layout for Case 22 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/22_cfg_3.5_512x512.jpg
+Generating Layout for Case 23 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/23_cfg_3.5_512x512.jpg
+Generating Layout for Case 24 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/24_cfg_3.5_512x512.jpg
+Generating Layout for Case 25 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/25_cfg_3.5_512x512.jpg
+Generating Layout for Case 26 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/26_cfg_3.5_512x512.jpg
+Generating Layout for Case 27 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/27_cfg_3.5_512x512.jpg
+Generating Layout for Case 28 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/28_cfg_3.5_512x512.jpg
+Generating Layout for Case 29 (12 subjects)...
+Successfully generated layout using Gemini (Attempt 1).
+Generating Image...
+Saved to outputs/ours/29_cfg_3.5_512x512.jpg
+Saved generated layouts to outputs/ours/layout_results.json
+Step 5: Evaluating Results...
+Evaluating Baseline...
+Using device: cuda
+Loading DINOv2 model...
+Downloading: "https://github.com/facebookresearch/dinov2/zipball/main" to /root/.cache/torch/hub/main.zip
+Downloading: "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth" to /root/.cache/torch/hub/checkpoints/dinov2_vits14_pretrain.pth
+Loading CLIP model...
+No layout file found. Using Global Identity Score.
+Evaluating 30 cases...
+Case 0: CLIP=0.177, ID(Global)=0.073
+Case 1: CLIP=0.152, ID(Global)=0.075
+Case 2: CLIP=0.149, ID(Global)=0.104
+Case 3: CLIP=0.108, ID(Global)=0.091
+Case 4: CLIP=0.127, ID(Global)=0.079
+Case 5: CLIP=0.168, ID(Global)=0.073
+Case 6: CLIP=0.229, ID(Global)=0.069
+Case 7: CLIP=0.107, ID(Global)=0.111
+Case 8: CLIP=0.142, ID(Global)=0.057
+Case 9: CLIP=0.131, ID(Global)=0.084
+Case 10: CLIP=0.142, ID(Global)=0.081
+Case 11: CLIP=0.204, ID(Global)=0.074
+Case 12: CLIP=0.132, ID(Global)=0.065
+Case 13: CLIP=0.188, ID(Global)=0.042
+Case 14: CLIP=0.127, ID(Global)=0.081
+Case 15: CLIP=0.148, ID(Global)=0.079
+Case 16: CLIP=0.105, ID(Global)=0.050
+Case 17: CLIP=0.111, ID(Global)=0.057
+Case 18: CLIP=0.094, ID(Global)=0.122
+Case 19: CLIP=0.154, ID(Global)=0.029
+Case 20: CLIP=0.130, ID(Global)=0.075
+Case 21: CLIP=0.194, ID(Global)=0.048
+Case 22: CLIP=0.180, ID(Global)=0.051
+Case 23: CLIP=0.216, ID(Global)=0.018
+Case 24: CLIP=0.146, ID(Global)=0.050
+Case 25: CLIP=0.060, ID(Global)=0.086
+Case 26: CLIP=0.114, ID(Global)=0.041
+Case 27: CLIP=0.190, ID(Global)=0.013
+Case 28: CLIP=0.202, ID(Global)=0.064
+Case 29: CLIP=0.227, ID(Global)=0.095
+
+=== Summary ===
+{'avg_clip': 0.1517703485985597, 'avg_identity': 0.06798206239861125}
+Saved results to outputs/baseline/evaluation_results.json
+Evaluating Ours...
+Using device: cuda
+Loading DINOv2 model...
+Loading CLIP model...
+Found layout file: outputs/ours/layout_results.json. Will use for Local Identity Score.
+Evaluating 30 cases...
+Case 0: CLIP=0.152, ID(Local)=0.027
+Case 1: CLIP=0.172, ID(Local)=0.030
+Case 2: CLIP=0.143, ID(Local)=0.060
+Case 3: CLIP=0.157, ID(Local)=0.006
+Case 4: CLIP=0.100, ID(Local)=-0.013
+Case 5: CLIP=0.112, ID(Local)=0.022
+Case 6: CLIP=0.157, ID(Local)=0.025
+Case 7: CLIP=0.141, ID(Local)=0.037
+Case 8: CLIP=0.105, ID(Local)=0.002
+Case 9: CLIP=0.153, ID(Local)=0.030
+Case 10: CLIP=0.144, ID(Local)=0.014
+Case 11: CLIP=0.207, ID(Local)=0.002
+Case 12: CLIP=0.165, ID(Local)=0.038
+Case 13: CLIP=0.157, ID(Local)=0.014
+Case 14: CLIP=0.120, ID(Local)=0.089
+Case 15: CLIP=0.174, ID(Local)=0.047
+Case 16: CLIP=0.140, ID(Local)=0.002
+Case 17: CLIP=0.121, ID(Local)=0.023
+Case 18: CLIP=0.116, ID(Local)=0.019
+Case 19: CLIP=0.146, ID(Local)=0.023
+Case 20: CLIP=0.175, ID(Local)=-0.008
+Case 21: CLIP=0.148, ID(Local)=0.025
+Case 22: CLIP=0.137, ID(Local)=0.017
+Case 23: CLIP=0.145, ID(Local)=-0.018
+Case 24: CLIP=0.141, ID(Local)=0.013
+Case 25: CLIP=0.082, ID(Local)=0.012
+Case 26: CLIP=0.209, ID(Local)=0.018
+Case 27: CLIP=0.163, ID(Local)=0.018
+Case 28: CLIP=0.127, ID(Local)=-0.002
+Case 29: CLIP=0.186, ID(Local)=0.011
+
+=== Summary ===
+{'avg_clip': 0.14655305470029514, 'avg_identity': 0.019421344985150628, 'avg_leakage': 0.021569674043394733}
+Saved results to outputs/ours/evaluation_results.json
+Experiment Complete! Results are in outputs/baseline and outputs/ours.
+The cache for model files in Transformers v4.22.0 has been updated. Migrating your old cache. This is a one-time only operation. You can interrupt this and resume the migration later on by calling `transformers.utils.move_cache()`.
+0it [00:00, ?it/s]
+2026-03-13 04:00:01.689374: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-03-13 04:00:01.707771: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1773374401.730179    4265 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1773374401.737676    4265 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+W0000 00:00:1773374401.757066    4265 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773374401.757100    4265 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773374401.757102    4265 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773374401.757104    4265 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2026-03-13 04:00:01.761940: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Fetching 23 files: 100%|██████████| 23/23 [01:26<00:00,  3.74s/it]
+Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+Loading pipeline components...:  57%|█████▋    | 4/7 [00:01<00:01,  2.02it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]
+Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  2.46it/s]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.46it/s]
+Loading pipeline components...: 100%|██████████| 7/7 [00:03<00:00,  2.21it/s]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.42s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.72s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+100%|██████████| 28/28 [00:56<00:00,  2.03s/it]
+2026-03-13 04:27:18.597534: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-03-13 04:27:18.618724: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1773376038.642420   11454 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1773376038.650071   11454 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+W0000 00:00:1773376038.670492   11454 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773376038.670525   11454 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773376038.670529   11454 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773376038.670531   11454 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2026-03-13 04:27:18.675890: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Loading pipeline components...:  14%|█▍        | 1/7 [00:01<00:10,  1.78s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]
+Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.98it/s]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.94it/s]
+Loading pipeline components...:  71%|███████▏  | 5/7 [00:03<00:01,  1.88it/s]You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+Loading pipeline components...: 100%|██████████| 7/7 [00:03<00:00,  1.85it/s]
+100%|██████████| 28/28 [00:40<00:00,  1.43s/it]
+100%|██████████| 28/28 [00:40<00:00,  1.44s/it]
+100%|██████████| 28/28 [00:40<00:00,  1.43s/it]
+100%|██████████| 28/28 [00:40<00:00,  1.44s/it]
+100%|██████████| 28/28 [00:40<00:00,  1.44s/it]
+100%|██████████| 28/28 [00:40<00:00,  1.44s/it]
+100%|██████████| 28/28 [00:40<00:00,  1.44s/it]
+100%|██████████| 28/28 [00:40<00:00,  1.44s/it]
+100%|██████████| 28/28 [00:40<00:00,  1.43s/it]
+100%|██████████| 28/28 [00:39<00:00,  1.43s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.74s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.74s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.74s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.74s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.74s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.74s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.74s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.73s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.74s/it]
+100%|██████████| 28/28 [00:48<00:00,  1.74s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.05s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.04s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.04s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.04s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.05s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.04s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.04s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.05s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.04s/it]
+100%|██████████| 28/28 [00:57<00:00,  2.04s/it]
+2026-03-13 04:53:53.221420: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-03-13 04:53:53.241488: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1773377633.264546   18385 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1773377633.272206   18385 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+W0000 00:00:1773377633.292694   18385 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773377633.292728   18385 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773377633.292731   18385 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773377633.292733   18385 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2026-03-13 04:53:53.297988: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+100%|██████████| 84.2M/84.2M [00:00<00:00, 209MB/s]
+2026-03-13 04:54:39.122925: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-03-13 04:54:39.141346: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1773377679.166096   18664 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+E0000 00:00:1773377679.174472   18664 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+W0000 00:00:1773377679.193674   18664 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773377679.193701   18664 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773377679.193704   18664 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+W0000 00:00:1773377679.193706   18664 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
+2026-03-13 04:54:39.198709: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Using cache found in /root/.cache/torch/hub/facebookresearch_dinov2_main
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")

@@ -19,6 +19,77 @@ def is_interaction_prompt(prompt):
     ]
     return any(k in text for k in keywords)
 
+def classify_interaction(prompt):
+    text = prompt.lower()
+    strong = [
+        "hug", "kiss", "embrace", "holding hands", "hold hands", "arm in arm",
+        "piggyback", "carry", "carries", "sitting closely"
+    ]
+    weak = [
+        "dance", "dancing", "handshake", "high five", "leaning on", "walking together"
+    ]
+    if any(k in text for k in strong):
+        return "strong"
+    if any(k in text for k in weak):
+        return "weak"
+    return "none"
+
+def _clamp_bbox(b, height, width):
+    y1, x1, y2, x2 = b
+    y1 = max(0, min(height, y1))
+    x1 = max(0, min(width, x1))
+    y2 = max(0, min(height, y2))
+    x2 = max(0, min(width, x2))
+    if y2 <= y1:
+        y2 = min(height, y1 + 50)
+    if x2 <= x1:
+        x2 = min(width, x1 + 50)
+    return [y1, x1, y2, x2]
+
+def _iou(a, b):
+    ay1, ax1, ay2, ax2 = a
+    by1, bx1, by2, bx2 = b
+    iy1, ix1 = max(ay1, by1), max(ax1, bx1)
+    iy2, ix2 = min(ay2, by2), min(ax2, bx2)
+    iw = max(0, ix2 - ix1)
+    ih = max(0, iy2 - iy1)
+    inter = iw * ih
+    area_a = max(1, (ay2 - ay1) * (ax2 - ax1))
+    area_b = max(1, (by2 - by1) * (bx2 - bx1))
+    union = area_a + area_b - inter
+    return inter / union
+
+def _adjust_bboxes(bboxes, height, width, min_iou, max_iou, steps=3):
+    bboxes = [list(b) for b in bboxes]
+    for _ in range(steps):
+        centers = []
+        sizes = []
+        for y1, x1, y2, x2 in bboxes:
+            centers.append(((x1 + x2) / 2.0, (y1 + y2) / 2.0))
+            sizes.append((x2 - x1, y2 - y1))
+        for i in range(len(bboxes)):
+            for j in range(i + 1, len(bboxes)):
+                iou = _iou(bboxes[i], bboxes[j])
+                cx_i, cy_i = centers[i]
+                cx_j, cy_j = centers[j]
+                if iou < min_iou:
+                    cx_i = (cx_i * 3 + cx_j) / 4
+                    cy_i = (cy_i * 3 + cy_j) / 4
+                    cx_j = (cx_j * 3 + cx_i) / 4
+                    cy_j = (cy_j * 3 + cy_i) / 4
+                if iou > max_iou:
+                    dx = cx_i - cx_j
+                    dy = cy_i - cy_j
+                    cx_i += 0.2 * dx
+                    cy_i += 0.2 * dy
+                    cx_j -= 0.2 * dx
+                    cy_j -= 0.2 * dy
+                w_i, h_i = sizes[i]
+                w_j, h_j = sizes[j]
+                bboxes[i] = _clamp_bbox([cy_i - h_i / 2, cx_i - w_i / 2, cy_i + h_i / 2, cx_i + w_i / 2], height, width)
+                bboxes[j] = _clamp_bbox([cy_j - h_j / 2, cx_j - w_j / 2, cy_j + h_j / 2, cx_j + w_j / 2], height, width)
+    return bboxes
+
 def generate_interaction_layout(num_subjects, height, width, seed_text):
     rng = random.Random(hash(seed_text) & 0xffffffff)
     base_w = max(120, width // 3)
@@ -49,18 +120,21 @@ def generate_layout(prompt, num_subjects, height=512, width=512, retries=3):
     Generates bounding boxes for subjects using Gemini-3-flash-preview.
     """
     api_key = os.getenv("GOOGLE_API_KEY")
-    interaction = is_interaction_prompt(prompt)
+    interaction = classify_interaction(prompt)
     if not api_key:
         print("Warning: GOOGLE_API_KEY not found in environment. Using fallback grid layout.")
-        if interaction:
-            return generate_interaction_layout(num_subjects, height, width, prompt)
-        return generate_grid_layout(num_subjects, height, width)
+        if interaction in ["strong", "weak"]:
+            bboxes = generate_interaction_layout(num_subjects, height, width, prompt)
+        else:
+            bboxes = generate_grid_layout(num_subjects, height, width)
+        bboxes = _adjust_bboxes(bboxes, height, width, 0.05 if interaction == "strong" else 0.01, 0.5 if interaction == "strong" else 0.15 if interaction == "weak" else 0.02)
+        return {"bboxes": bboxes, "interaction": interaction}
 
     for attempt in range(retries):
         try:
             client = genai.Client(api_key=api_key)
             
-            overlap_hint = "Allow overlapping boxes and keep them close." if interaction else "Avoid overlap and keep boxes separated."
+            overlap_hint = "Allow overlapping boxes and keep them close." if interaction in ["strong", "weak"] else "Avoid overlap and keep boxes separated."
             system_instruction = f"""
 You are an expert image layout planner. Your task is to generate bounding boxes for {num_subjects} subjects in a {height}x{width} canvas based on a text prompt.
 The output must be a valid JSON object where keys are subject indices (0 to {num_subjects-1}) and values are [y_min, x_min, y_max, x_max].
@@ -114,17 +188,26 @@ Do not output any markdown formatting, code blocks, or explanation. Just return 
                 
                 bboxes.append([y1, x1, y2, x2])
                 
+            if interaction == "strong":
+                bboxes = _adjust_bboxes(bboxes, height, width, 0.05, 0.6)
+            elif interaction == "weak":
+                bboxes = _adjust_bboxes(bboxes, height, width, 0.02, 0.3)
+            else:
+                bboxes = _adjust_bboxes(bboxes, height, width, 0.0, 0.02)
             print(f"Successfully generated layout using Gemini (Attempt {attempt+1}).")
-            return bboxes
+            return {"bboxes": bboxes, "interaction": interaction}
 
         except Exception as e:
             print(f"Error calling Gemini (Attempt {attempt+1}/{retries}): {e}")
             time.sleep(1) # Wait a bit before retry
     
     print("All attempts failed. Falling back to grid layout.")
-    if interaction:
-        return generate_interaction_layout(num_subjects, height, width, prompt)
-    return generate_grid_layout(num_subjects, height, width)
+    if interaction in ["strong", "weak"]:
+        bboxes = generate_interaction_layout(num_subjects, height, width, prompt)
+    else:
+        bboxes = generate_grid_layout(num_subjects, height, width)
+    bboxes = _adjust_bboxes(bboxes, height, width, 0.05 if interaction == "strong" else 0.01, 0.5 if interaction == "strong" else 0.15 if interaction == "weak" else 0.02)
+    return {"bboxes": bboxes, "interaction": interaction}
 
 def generate_grid_layout(num_subjects, height, width):
     """
