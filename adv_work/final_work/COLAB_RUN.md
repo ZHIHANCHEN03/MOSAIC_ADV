@@ -53,13 +53,25 @@ else:
 3. 将本地的 `adv_work` 文件夹直接拖拽到 Colab 的 `MOSAIC_ADV` 文件夹内。
    *(确保路径结构为 `MOSAIC_ADV/adv_work/final_work/...`)*
 
-或者运行以下代码确认文件夹是否就位：
+或者运行以下代码确认文件夹是否就位，并测试 LLM 是否可用：
 ```python
 import os
 if os.path.exists("MOSAIC_ADV/adv_work/final_work/run_experiment.sh"):
     print("✅ adv_work folder detected!")
 else:
     print("❌ adv_work folder NOT found. Please upload it to MOSAIC_ADV/ first.")
+
+# Optional: LLM connectivity check
+try:
+    from google import genai
+    client = genai.Client()
+    resp = client.models.generate_content(
+        model="gemini-3.1-flash-lite-preview",
+        contents="Return 'OK' if you can respond."
+    )
+    print("✅ LLM test OK:", resp.text.strip())
+except Exception as e:
+    print("❌ LLM test failed:", e)
 ```
 
 ---
