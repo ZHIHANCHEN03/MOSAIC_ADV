@@ -59,6 +59,23 @@ def _iou(a, b):
     union = area_a + area_b - inter
     return inter / union
 
+def _layout_score(bboxes):
+    if len(bboxes) < 2:
+        return 1.0, 0.0
+    ious = []
+    for i in range(len(bboxes)):
+        for j in range(i + 1, len(bboxes)):
+            ious.append(_iou(bboxes[i], bboxes[j]))
+    return sum(ious) / len(ious), max(ious)
+
+def _layout_ok(bboxes, interaction):
+    avg_iou, max_iou = _layout_score(bboxes)
+    if interaction == "strong":
+        return avg_iou >= 0.05 and max_iou <= 0.85
+    if interaction == "weak":
+        return avg_iou >= 0.02 and max_iou <= 0.65
+    return max_iou <= 0.12
+
 def _adjust_bboxes(bboxes, height, width, min_iou, max_iou, steps=3):
     bboxes = [list(b) for b in bboxes]
     for _ in range(steps):
@@ -128,7 +145,7 @@ def generate_layout(prompt, num_subjects, height=512, width=512, retries=3):
         else:
             bboxes = generate_grid_layout(num_subjects, height, width)
         bboxes = _adjust_bboxes(bboxes, height, width, 0.05 if interaction == "strong" else 0.01, 0.5 if interaction == "strong" else 0.15 if interaction == "weak" else 0.02)
-        return {"bboxes": bboxes, "interaction": interaction}
+        return {"bboxes": bboxes, "interaction": interaction, "layout_ok": _layout_ok(bboxes, interaction)}
 
     for attempt in range(retries):
         try:
@@ -194,8 +211,14 @@ Do not output any markdown formatting, code blocks, or explanation. Just return 
                 bboxes = _adjust_bboxes(bboxes, height, width, 0.02, 0.3)
             else:
                 bboxes = _adjust_bboxes(bboxes, height, width, 0.0, 0.02)
+            if not _layout_ok(bboxes, interaction):
+                if interaction in ["strong", "weak"]:
+                    bboxes = generate_interaction_layout(num_subjects, height, width, prompt)
+                else:
+                    bboxes = generate_grid_layout(num_subjects, height, width)
+                bboxes = _adjust_bboxes(bboxes, height, width, 0.05 if interaction == "strong" else 0.01, 0.5 if interaction == "strong" else 0.15 if interaction == "weak" else 0.02)
             print(f"Successfully generated layout using Gemini (Attempt {attempt+1}).")
-            return {"bboxes": bboxes, "interaction": interaction}
+            return {"bboxes": bboxes, "interaction": interaction, "layout_ok": _layout_ok(bboxes, interaction)}
 
         except Exception as e:
             print(f"Error calling Gemini (Attempt {attempt+1}/{retries}): {e}")
@@ -207,7 +230,7 @@ Do not output any markdown formatting, code blocks, or explanation. Just return 
     else:
         bboxes = generate_grid_layout(num_subjects, height, width)
     bboxes = _adjust_bboxes(bboxes, height, width, 0.05 if interaction == "strong" else 0.01, 0.5 if interaction == "strong" else 0.15 if interaction == "weak" else 0.02)
-    return {"bboxes": bboxes, "interaction": interaction}
+    return {"bboxes": bboxes, "interaction": interaction, "layout_ok": _layout_ok(bboxes, interaction)}
 
 def generate_grid_layout(num_subjects, height, width):
     """

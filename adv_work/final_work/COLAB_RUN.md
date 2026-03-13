@@ -31,6 +31,7 @@ sed -i '/^deepspeed/d' requirements.txt
 python3 -m pip install -U pip
 python3 -m pip install -r requirements.txt
 python3 -m pip install google-generativeai python-dotenv
+python3 -m pip install lang_sam
 ```
 
 **检查安装结果** (可单独运行确认)：

@@ -37,7 +37,9 @@ python3 adv_work/final_work/inference_baseline.py \
 echo "Step 4: Running Ours (Spatial-Aware Attention Masking)..."
 python3 adv_work/final_work/inference_masked.py \
     --json_path "$JSON_PATH" \
-    --output_dir outputs/ours
+    --output_dir outputs/ours \
+    --use_shape_mask \
+    --use_langsam_mask
 
 echo "Step 5: Evaluating Results..."
 EVAL_SCRIPT="adv_work/final_work/eval.py"

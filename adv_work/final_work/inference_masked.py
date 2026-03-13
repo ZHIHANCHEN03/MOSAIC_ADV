@@ -4,6 +4,9 @@ import json
 import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as TF
+import numpy as np
+from PIL import Image
+import cv2
 from diffusers import FluxPipeline
 from src.flux_omini import Condition, generate
 from utils import process_image
@@ -45,6 +48,138 @@ def create_soft_mask(bboxes, height, width, downsample_ratio=16, kernel_size=15)
     # Flatten spatial dims: [Num_Subjects, Seq_Len] -> [Seq_Len, Num_Subjects]
     masks = masks.flatten(1).transpose(0, 1)
     
+    return masks
+
+def _has_body_style(prompt):
+    text = (prompt or "").lower()
+    keywords = [
+        "full body", "outfit", "dress", "jacket", "coat", "shirt", "pants",
+        "skirt", "suit", "uniform", "armor", "hoodie", "jeans", "long coat",
+        "gown", "kimono", "sari", "bikini", "swimsuit"
+    ]
+    return any(k in text for k in keywords)
+
+def _action_profile(prompt):
+    text = (prompt or "").lower()
+    if any(k in text for k in ["jump", "jumping", "leap", "leaping", "kick", "kicking", "run", "running"]):
+        return "dynamic"
+    if any(k in text for k in ["dance", "dancing", "pose", "posing", "yoga", "stretch", "stretching", "martial"]):
+        return "expressive"
+    if any(k in text for k in ["sit", "sitting", "stand", "standing", "sleep", "lying", "laying"]):
+        return "static"
+    return "neutral"
+
+def _is_human_prompt(prompt):
+    text = (prompt or "").lower()
+    keywords = ["person", "people", "man", "woman", "boy", "girl", "human", "couple", "group", "portrait"]
+    return any(k in text for k in keywords)
+
+def _has_face(ref_img):
+    try:
+        arr = np.array(ref_img)
+        gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
+        cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(30, 30))
+        return len(faces) > 0
+    except Exception:
+        return False
+
+_LANG_SAM = None
+
+def _get_langsam():
+    global _LANG_SAM
+    if _LANG_SAM is not None:
+        return _LANG_SAM
+    try:
+        from lang_sam import LangSAM
+        _LANG_SAM = LangSAM(sam_type="sam2.1_hiera_large")
+    except Exception:
+        _LANG_SAM = False
+    return _LANG_SAM
+
+def _segment_with_langsam(ref_img, text_prompt):
+    model = _get_langsam()
+    if not model:
+        return None
+    try:
+        results = model.predict([ref_img], [text_prompt], box_threshold=0.30, text_threshold=0.25)
+        masks = results[0].get("masks")
+        if isinstance(masks, list) and len(masks) == 0:
+            return None
+        mask_np = (masks.any(axis=0)).astype("uint8") * 255
+        return mask_np
+    except Exception:
+        return None
+
+def create_shape_mask(bboxes, ref_imgs, height, width, downsample_ratio=16, kernel_size=15, threshold=240, prompt=None, use_langsam=False):
+    H_lat, W_lat = height // downsample_ratio, width // downsample_ratio
+    num_subjects = len(bboxes)
+    masks = torch.zeros((num_subjects, height, width), dtype=torch.float32)
+    for i, bbox in enumerate(bboxes):
+        y1, x1, y2, x2 = [int(c) for c in bbox]
+        y1 = max(0, min(height, y1))
+        x1 = max(0, min(width, x1))
+        y2 = max(0, min(height, y2))
+        x2 = max(0, min(width, x2))
+        if y2 <= y1 or x2 <= x1:
+            continue
+        ref_img = ref_imgs[i] if i < len(ref_imgs) else None
+        if ref_img is None:
+            masks[i, y1:y2, x1:x2] = 1.0
+            continue
+        mask_np = None
+        if use_langsam:
+            text_prompt = "person" if _is_human_prompt(prompt) else "object"
+            mask_np = _segment_with_langsam(ref_img, text_prompt)
+        if mask_np is None:
+            arr = np.array(ref_img)
+            mask_np = (arr < threshold).any(axis=2).astype(np.uint8) * 255
+        if mask_np.mean() / 255.0 < 0.02:
+            masks[i, y1:y2, x1:x2] = 1.0
+            continue
+        area_ratio = mask_np.mean() / 255.0
+        mask_img = Image.fromarray(mask_np, mode="L")
+        resized = mask_img.resize((x2 - x1, y2 - y1), Image.BILINEAR)
+        resized_np = np.array(resized).astype(np.float32) / 255.0
+        is_face = _has_face(ref_img) if ref_img is not None else False
+        if area_ratio < 0.12 and is_face and _is_human_prompt(prompt):
+            h = y2 - y1
+            w = x2 - x1
+            cx = w * 0.5
+            cy = h * 0.28
+            head_r_x = w * 0.22
+            head_r_y = h * 0.18
+            yy, xx = np.mgrid[0:h, 0:w]
+            head = ((xx - cx) ** 2) / (head_r_x ** 2 + 1e-6) + ((yy - cy) ** 2) / (head_r_y ** 2 + 1e-6) <= 1
+            body_top = int(h * 0.35)
+            body_bottom = int(h * 0.95)
+            profile = _action_profile(prompt)
+            width_scale = 0.28 if _has_body_style(prompt) else 0.22
+            if profile == "dynamic":
+                width_scale = max(width_scale, 0.32)
+                body_bottom = int(h * 0.98)
+            elif profile == "expressive":
+                width_scale = max(width_scale, 0.30)
+            elif profile == "static":
+                width_scale = max(width_scale, 0.26)
+            body_half_w = w * width_scale
+            body = (yy >= body_top) & (yy <= body_bottom) & (np.abs(xx - cx) <= body_half_w)
+            body_mask = (head | body).astype(np.float32)
+            body_weight = 0.6 if _has_body_style(prompt) else 0.35
+            if profile == "dynamic":
+                body_weight = max(body_weight, 0.7)
+            elif profile == "expressive":
+                body_weight = max(body_weight, 0.55)
+            resized_np = np.maximum(resized_np, body_weight * body_mask)
+        masks[i, y1:y2, x1:x2] = torch.from_numpy(resized_np)
+    masks = masks.unsqueeze(1)
+    masks = F.interpolate(masks, size=(H_lat, W_lat), mode="bilinear", align_corners=False)
+    masks = masks[:, 0]
+    if kernel_size > 0:
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        masks = TF.gaussian_blur(masks, kernel_size=kernel_size)
+    masks = masks.flatten(1).transpose(0, 1)
     return masks
 
 def install_spatial_attn_patch(penalty_strength: float = 10.0):
@@ -263,7 +398,10 @@ def run_inference(pipe, args):
             kernel_size = kernel_size + 4
             alpha = 0.8
         
-        mask = create_soft_mask(bboxes, 512, 512, kernel_size=kernel_size).to(pipe.device)
+        if args.use_shape_mask:
+            mask = create_shape_mask(bboxes, ref_imgs, 512, 512, kernel_size=kernel_size, prompt=prompt, use_langsam=args.use_langsam_mask).to(pipe.device)
+        else:
+            mask = create_soft_mask(bboxes, 512, 512, kernel_size=kernel_size).to(pipe.device)
         if alpha < 1.0:
             mask = mask * alpha + (1.0 - alpha)
         
@@ -305,6 +443,8 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default="./outputs_ours")
     parser.add_argument("--penalty_strength", type=float, default=10.0, help="Strength of attention masking penalty")
     parser.add_argument("--kernel_size", type=int, default=15, help="Gaussian blur kernel size for soft mask")
+    parser.add_argument("--use_shape_mask", action="store_true")
+    parser.add_argument("--use_langsam_mask", action="store_true")
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
     
