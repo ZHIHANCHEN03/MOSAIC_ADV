@@ -16,7 +16,10 @@ python3 adv_work/final_work/generate_test_cases.py \
     --subject_counts 6,8,10 \
     --cases_per_count 1 \
     --interaction_ratio 0.3 \
-    --seed 42
+    --seed 42 \
+    --use_llm_selection \
+    --llm_model gemini-3.1-flash-lite-preview \
+    --candidate_pool_size 30
 
 python3 adv_work/final_work/inference_masked.py \
     --json_path adv_work/final_work/quick_scaling_experiment.json \

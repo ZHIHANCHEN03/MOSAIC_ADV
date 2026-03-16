@@ -2,8 +2,42 @@ import json
 import os
 import random
 import argparse
+import re
+from google import genai
 
-def generate_scaling_cases(output_path="adv_work/final_work/scaling_experiment.json", subject_counts=None, cases_per_count=10, interaction_ratio=0.3, seed=42):
+def _extract_json(text):
+    match = re.search(r"\{[\s\S]*\}", text)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(0))
+    except Exception:
+        return None
+
+def _llm_select_case(client, model, candidates, count, interaction_ratio, rng):
+    use_interaction = rng.random() < interaction_ratio
+    mode = "interaction" if use_interaction else "non_interaction"
+    prompt = (
+        "You are given a list of candidate subject image filenames. "
+        "Pick a coherent subset of size {n} that has a meaningful relationship, "
+        "and write a simple, natural prompt that includes all subjects. "
+        "Keep the scene easy: single setting, minimal interactions, minimal occlusion, "
+        "no fantasy, no complex actions, no crowded background. "
+        "Examples of simple scenes: 'objects on a wooden table', 'people standing side by side', "
+        "'family sitting on a couch', 'items on a kitchen counter'. "
+        "Return JSON only with keys: selected_images (array of filenames), prompt (string). "
+        "Mode: {mode}. Candidates: {cands}"
+    ).format(n=count, mode=mode, cands=", ".join(candidates))
+    resp = client.models.generate_content(model=model, contents=prompt)
+    parsed = _extract_json(resp.text or "")
+    if not parsed:
+        return None
+    sel = parsed.get("selected_images", [])
+    if len(sel) != count:
+        return None
+    return {"selected_images": sel, "prompt": parsed.get("prompt", "")}
+
+def generate_scaling_cases(output_path="adv_work/final_work/scaling_experiment.json", subject_counts=None, cases_per_count=10, interaction_ratio=0.3, seed=42, use_llm_selection=False, llm_model="gemini-3.1-flash-lite-preview", candidate_pool_size=30):
     if subject_counts is None:
         subject_counts = [6, 8, 10]
     # Ensure output dir exists
@@ -41,13 +75,23 @@ def generate_scaling_cases(output_path="adv_work/final_work/scaling_experiment.j
     ]
     index = 0
     rng = random.Random(seed)
+    client = genai.Client() if use_llm_selection else None
     for count in subject_counts:
         for _ in range(cases_per_count):
-            selected_imgs = rng.sample(valid_images, count)
-            use_interaction = rng.random() < interaction_ratio
-            template_pool = templates_interaction if use_interaction else templates_non_interaction
-            template = rng.choice(template_pool)
-            prompt = template.format(n=count)
+            selected_imgs = None
+            prompt = None
+            if use_llm_selection:
+                pool = rng.sample(valid_images, min(candidate_pool_size, len(valid_images)))
+                llm_case = _llm_select_case(client, llm_model, [os.path.basename(p) for p in pool], count, interaction_ratio, rng)
+                if llm_case:
+                    prompt = llm_case["prompt"]
+                    selected_imgs = [os.path.join("assets", n) for n in llm_case["selected_images"]]
+            if not selected_imgs:
+                selected_imgs = rng.sample(valid_images, count)
+                use_interaction = rng.random() < interaction_ratio
+                template_pool = templates_interaction if use_interaction else templates_non_interaction
+                template = rng.choice(template_pool)
+                prompt = template.format(n=count)
             cases.append({
                 "index": index,
                 "prompt": prompt,
@@ -68,6 +112,9 @@ if __name__ == "__main__":
     parser.add_argument("--cases_per_count", type=int, default=10)
     parser.add_argument("--interaction_ratio", type=float, default=0.3)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--use_llm_selection", action="store_true")
+    parser.add_argument("--llm_model", type=str, default="gemini-3.1-flash-lite-preview")
+    parser.add_argument("--candidate_pool_size", type=int, default=30)
     args = parser.parse_args()
     counts = [int(x.strip()) for x in args.subject_counts.split(",") if x.strip()]
-    generate_scaling_cases(args.output_path, counts, args.cases_per_count, args.interaction_ratio, args.seed)
+    generate_scaling_cases(args.output_path, counts, args.cases_per_count, args.interaction_ratio, args.seed, args.use_llm_selection, args.llm_model, args.candidate_pool_size)

@@ -20,8 +20,11 @@ export PYTHONPATH=$PYTHONPATH:$(pwd):$(pwd)/adv_work/final_work
 mkdir -p outputs/baseline
 mkdir -p outputs/ours
 
-echo "Step 2: Generating Scaling Test Cases..."
-python3 adv_work/final_work/generate_test_cases.py
+echo "Step 2: Generating Scaling Test Cases (LLM-selected meaningful cases)..."
+python3 adv_work/final_work/generate_test_cases.py \
+    --use_llm_selection \
+    --llm_model gemini-3.1-flash-lite-preview \
+    --candidate_pool_size 30
 
 JSON_PATH="adv_work/final_work/scaling_experiment.json"
 # Fallback logic

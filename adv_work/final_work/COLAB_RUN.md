@@ -31,7 +31,6 @@ sed -i '/^deepspeed/d' requirements.txt
 python3 -m pip install -U pip
 python3 -m pip install -r requirements.txt
 python3 -m pip install google-generativeai python-dotenv
-python3 -m pip install lang_sam
 ```
 
 **检查安装结果** (可单独运行确认)：
@@ -54,7 +53,7 @@ else:
 3. 将本地的 `adv_work` 文件夹直接拖拽到 Colab 的 `MOSAIC_ADV` 文件夹内。
    *(确保路径结构为 `MOSAIC_ADV/adv_work/final_work/...`)*
 
-或者运行以下代码确认文件夹是否就位，并测试 LLM 是否可用：
+或者运行以下代码确认文件夹是否就位，并测试 LLM 是否可用（用于生成“有意义的 case”）：
 ```python
 import os
 if os.path.exists("MOSAIC_ADV/adv_work/final_work/run_experiment.sh"):
@@ -91,7 +90,7 @@ if [ -d "MOSAIC_ADV" ]; then cd MOSAIC_ADV; fi
 chmod +x adv_work/final_work/run_experiment.sh
 
 # 运行一键脚本
-# 它会自动调用: generate_test_cases.py -> inference_baseline.py -> inference_masked.py -> eval.py
+# 它会自动调用: generate_test_cases.py(LLM选择关联subject和prompt) -> inference_baseline.py -> inference_masked.py -> eval.py
 bash adv_work/final_work/run_experiment.sh
 ```
 

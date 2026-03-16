@@ -1,4 +1,4 @@
-## Colab 快速展示（只跑 8/10/12 各 1 张）
+## Colab 快速展示（只跑 6/8/10 各 1 张）
 
 ### Cell 1: Clone + 安装依赖
 **注意：URL 不要加反引号。**
@@ -10,14 +10,12 @@ rm -rf MOSAIC_ADV
 git clone https://github.com/ZHIHANCHEN03/MOSAIC_ADV.git MOSAIC_ADV
 cd MOSAIC_ADV
 
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-
 python3 -m pip install -U pip
 python3 -m pip install -r requirements.txt
 python3 -m pip install google-generativeai python-dotenv
 ```
 
-### Cell 2: 上传 adv_work 文件夹 + 测试 LLM
+### Cell 2: 上传 adv_work 文件夹 + 测试 LLM（用于生成“有意义的 case”）
 ```python
 import os
 if os.path.exists("MOSAIC_ADV/adv_work/final_work/quick_show_adv.sh"):
@@ -37,7 +35,7 @@ except Exception as e:
     print("❌ LLM test failed:", e)
 ```
 
-### Cell 3: 运行 quick_show_adv.sh
+### Cell 3: 运行 quick_show_adv.sh（LLM 选择关联 subject + 生成简洁 prompt）
 ```bash
 %%bash
 set -euo pipefail
