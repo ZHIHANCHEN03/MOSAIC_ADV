@@ -26,7 +26,6 @@ python3 adv_work/final_work/inference_masked.py \
     --num_samples 2 \
     --self_attn_penalty 1.2 \
     --text_attn_weight 0.7
-    --text_attn_weight 0.7
 
 python3 adv_work/final_work/eval.py \
     --json_path adv_work/final_work/quick_scaling_experiment.json \
