@@ -28,7 +28,6 @@ python3 adv_work/final_work/inference_masked.py \
     --kernel_size 31 \
     --num_samples 2 \
     --self_attn_penalty 1.2 \
-    --text_attn_weight 0.7
     --text_attn_weight 0.7 \
     --disable_bbox
 
