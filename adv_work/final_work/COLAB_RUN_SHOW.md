@@ -44,14 +44,37 @@ chmod +x adv_work/final_work/quick_show_adv.sh
 bash adv_work/final_work/quick_show_adv.sh
 ```
 
-### Cell 4: 展示三张图片
+### Cell 4: 运行 Baseline（为了对比输出）
+```bash
+%%bash
+set -euo pipefail
+if [ -d "MOSAIC_ADV" ]; then cd MOSAIC_ADV; fi
+python3 adv_work/final_work/inference_baseline.py \
+    --json_path adv_work/final_work/quick_scaling_experiment.json \
+    --output_dir outputs/baseline_quick
+```
+
+### Cell 5: 展示 subject + prompt + baseline + adv
 ```python
-import glob, os
+import glob, os, json
 from PIL import Image
 from IPython.display import display
 
-files = sorted(glob.glob("MOSAIC_ADV/outputs/ours_quick/*.jpg"))
-print(files)
-for f in files[:3]:
-    display(Image.open(f).resize((512, 512)))
+with open("MOSAIC_ADV/adv_work/final_work/quick_scaling_experiment.json") as f:
+    cases = json.load(f)
+
+def show_case(case):
+    idx = case["index"]
+    print("\n== Case", idx, "==")
+    print("Prompt:", case["prompt"])
+    print("Subjects:", case["image_paths"])
+    base = glob.glob(f"MOSAIC_ADV/outputs/baseline_quick/{idx}_cfg_*.jpg")
+    adv = glob.glob(f"MOSAIC_ADV/outputs/ours_quick/{idx}_cfg_*.jpg")
+    if base:
+        display(Image.open(base[0]).resize((384, 384)))
+    if adv:
+        display(Image.open(adv[0]).resize((384, 384)))
+
+for case in cases:
+    show_case(case)
 ```
