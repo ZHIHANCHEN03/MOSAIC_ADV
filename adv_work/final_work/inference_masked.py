@@ -31,7 +31,7 @@ def create_soft_mask(bboxes, height, width, downsample_ratio=16, kernel_size=15)
     
     for i, bbox in enumerate(bboxes):
         # BBox is [y1, x1, y2, x2] in pixel space
-        y1, x1, y2, x2 = [c // downsample_ratio for c in bbox]
+        y1, x1, y2, x2 = [int(c) // downsample_ratio for c in bbox]
         # Clamp
         y1, x1 = max(0, y1), max(0, x1)
         y2, x2 = min(H_lat, y2), min(W_lat, x2)
