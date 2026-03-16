@@ -21,12 +21,11 @@ python3 adv_work/final_work/generate_test_cases.py \
 python3 adv_work/final_work/inference_masked.py \
     --json_path adv_work/final_work/quick_scaling_experiment.json \
     --output_dir outputs/ours_quick \
-    --use_shape_mask \
-    --use_langsam_mask \
     --penalty_strength 6 \
     --kernel_size 31 \
     --num_samples 2 \
     --self_attn_penalty 1.2 \
+    --text_attn_weight 0.7
     --text_attn_weight 0.7
 
 python3 adv_work/final_work/eval.py \

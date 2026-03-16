@@ -15,7 +15,6 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 python3 -m pip install -U pip
 python3 -m pip install -r requirements.txt
 python3 -m pip install google-generativeai python-dotenv
-python3 -m pip install git+https://github.com/luca-medeiros/lang-segment-anything
 ```
 
 ### Cell 2: 上传 adv_work 文件夹 + 测试 LLM

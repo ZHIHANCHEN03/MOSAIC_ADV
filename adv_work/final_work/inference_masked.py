@@ -85,6 +85,29 @@ def _has_face(ref_img):
     except Exception:
         return False
 
+def _expand_bbox_for_face(bbox, ref_img, prompt, height, width):
+    if ref_img is None or not _is_human_prompt(prompt) or not _has_face(ref_img):
+        return bbox
+    y1, x1, y2, x2 = bbox
+    h = max(1, y2 - y1)
+    w = max(1, x2 - x1)
+    cy = (y1 + y2) * 0.5
+    cx = (x1 + x2) * 0.5
+    nh = min(height, int(h * 1.6))
+    nw = min(width, int(w * 1.2))
+    ny1 = max(0, int(cy - nh * 0.35))
+    ny2 = min(height, ny1 + nh)
+    nx1 = max(0, int(cx - nw * 0.5))
+    nx2 = min(width, nx1 + nw)
+    return [ny1, nx1, ny2, nx2]
+
+def _expand_face_bboxes(bboxes, ref_imgs, prompt, height, width):
+    expanded = []
+    for i, bbox in enumerate(bboxes):
+        ref_img = ref_imgs[i] if i < len(ref_imgs) else None
+        expanded.append(_expand_bbox_for_face(bbox, ref_img, prompt, height, width))
+    return expanded
+
 _LANG_SAM = None
 
 def _get_langsam():
@@ -421,6 +444,7 @@ def run_inference(pipe, args):
         else:
             bboxes = layout_result
             interaction_level = "none"
+        bboxes = _expand_face_bboxes(bboxes, ref_imgs, prompt, 512, 512)
         
         layout_results[str(index)] = layout_result
         

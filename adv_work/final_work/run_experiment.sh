@@ -38,8 +38,6 @@ echo "Step 4: Running Ours (Spatial-Aware Attention Masking)..."
 python3 adv_work/final_work/inference_masked.py \
     --json_path "$JSON_PATH" \
     --output_dir outputs/ours \
-    --use_shape_mask \
-    --use_langsam_mask \
     --penalty_strength 6 \
     --kernel_size 31 \
     --num_samples 2 \
