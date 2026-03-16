@@ -46,7 +46,8 @@ python3 adv_work/final_work/inference_masked.py \
     --num_samples 2 \
     --select_best_by_clip \
     --self_attn_penalty 1.2 \
-    --text_attn_weight 0.7
+    --text_attn_weight 0.7 \
+    --disable_bbox
 
 echo "Step 5: Evaluating Results..."
 EVAL_SCRIPT="adv_work/final_work/eval.py"

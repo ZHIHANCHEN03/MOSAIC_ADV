@@ -312,20 +312,29 @@ def install_spatial_attn_patch(penalty_strength: float = 10.0):
             v_cat = torch.cat(values_, dim=2)
 
             attn_mask = None
-            # Inject only for: image-query branch (index 1) attending to condition branches (>=2)
-            if spatial_mask is not None and i == 1:
+            # Inject only for: image-query branch (index 1)
+            if i == 1:
+                text_weight = float(getattr(mosaic, "TEXT_ATTN_WEIGHT", 1.0))
+                if text_weight <= 0:
+                    text_weight = 1.0
                 num_subjects = spatial_mask.shape[1]
                 # condition branches are expected to be 2..(2+num_subjects-1)
                 bias_chunks = []
                 img_seq_len = query.shape[2]
-                if spatial_mask.shape[0] == img_seq_len and num_subjects > 0:
+                if spatial_mask is None:
+                    for (branch_idx, k_len) in branch_k_meta:
+                        if branch_idx < h2_n:
+                            bias = torch.full((1, 1, img_seq_len, k_len), float(np.log(text_weight)), device=query.device, dtype=query.dtype)
+                            bias_chunks.append(bias)
+                        else:
+                            bias_chunks.append(torch.zeros((1, 1, img_seq_len, k_len), device=query.device, dtype=query.dtype))
+                    if bias_chunks:
+                        attn_mask = torch.cat(bias_chunks, dim=-1)
+                elif spatial_mask.shape[0] == img_seq_len and num_subjects > 0:
                     cursor = 0
                     for (branch_idx, k_len) in branch_k_meta:
                         if branch_idx < h2_n:
-                            weight = float(getattr(mosaic, "TEXT_ATTN_WEIGHT", 1.0))
-                            if weight <= 0:
-                                weight = 1.0
-                            bias = torch.full((1, 1, img_seq_len, k_len), float(np.log(weight)), device=query.device, dtype=query.dtype)
+                            bias = torch.full((1, 1, img_seq_len, k_len), float(np.log(text_weight)), device=query.device, dtype=query.dtype)
                             bias_chunks.append(bias)
                         elif branch_idx >= 2:
                             subj_idx = branch_idx - 2
@@ -434,17 +443,21 @@ def run_inference(pipe, args):
         if not ref_imgs: continue
 
         # 1. Generate Layout (LLM)
-        print(f"Generating Layout for Case {index} ({len(ref_imgs)} subjects)...")
-        layout_result = generate_layout(prompt, len(ref_imgs), 512, 512)
-        if isinstance(layout_result, dict) and not layout_result.get("layout_ok", True):
+        bboxes = None
+        interaction_level = "none"
+        layout_result = None
+        if not args.disable_bbox:
+            print(f"Generating Layout for Case {index} ({len(ref_imgs)} subjects)...")
             layout_result = generate_layout(prompt, len(ref_imgs), 512, 512)
-        if isinstance(layout_result, dict):
-            bboxes = layout_result.get("bboxes", [])
-            interaction_level = layout_result.get("interaction", "none")
-        else:
-            bboxes = layout_result
-            interaction_level = "none"
-        bboxes = _expand_face_bboxes(bboxes, ref_imgs, prompt, 512, 512)
+            if isinstance(layout_result, dict) and not layout_result.get("layout_ok", True):
+                layout_result = generate_layout(prompt, len(ref_imgs), 512, 512)
+            if isinstance(layout_result, dict):
+                bboxes = layout_result.get("bboxes", [])
+                interaction_level = layout_result.get("interaction", "none")
+            else:
+                bboxes = layout_result
+                interaction_level = "none"
+            bboxes = _expand_face_bboxes(bboxes, ref_imgs, prompt, 512, 512)
         
         layout_results[str(index)] = layout_result
         
@@ -457,17 +470,21 @@ def run_inference(pipe, args):
             kernel_size = kernel_size + 4
             alpha = 0.7
         
-        if args.use_shape_mask:
-            mask = create_shape_mask(bboxes, ref_imgs, 512, 512, kernel_size=kernel_size, prompt=prompt, use_langsam=args.use_langsam_mask).to(pipe.device)
-        else:
-            mask = create_soft_mask(bboxes, 512, 512, kernel_size=kernel_size).to(pipe.device)
-        if alpha < 1.0:
-            mask = mask * alpha + (1.0 - alpha)
-        if args.self_attn_penalty > 0 and mask.shape[1] > 1:
-            subj_ids = torch.argmax(mask, dim=1)
-            self_bias = (subj_ids[:, None] == subj_ids[None, :]).to(mask.dtype)
-            self_bias = (self_bias - 1.0) * float(args.self_attn_penalty)
-            mosaic.SPATIAL_SELF_BIAS = self_bias
+        mask = None
+        if not args.disable_bbox:
+            if args.use_shape_mask:
+                mask = create_shape_mask(bboxes, ref_imgs, 512, 512, kernel_size=kernel_size, prompt=prompt, use_langsam=args.use_langsam_mask).to(pipe.device)
+            else:
+                mask = create_soft_mask(bboxes, 512, 512, kernel_size=kernel_size).to(pipe.device)
+            if alpha < 1.0:
+                mask = mask * alpha + (1.0 - alpha)
+            if args.self_attn_penalty > 0 and mask.shape[1] > 1:
+                subj_ids = torch.argmax(mask, dim=1)
+                self_bias = (subj_ids[:, None] == subj_ids[None, :]).to(mask.dtype)
+                self_bias = (self_bias - 1.0) * float(args.self_attn_penalty)
+                mosaic.SPATIAL_SELF_BIAS = self_bias
+            else:
+                mosaic.SPATIAL_SELF_BIAS = None
         else:
             mosaic.SPATIAL_SELF_BIAS = None
         mosaic.TEXT_ATTN_WEIGHT = float(args.text_attn_weight)
@@ -528,6 +545,7 @@ if __name__ == "__main__":
     parser.add_argument("--select_best_by_clip", action="store_true")
     parser.add_argument("--self_attn_penalty", type=float, default=1.2)
     parser.add_argument("--text_attn_weight", type=float, default=0.7)
+    parser.add_argument("--disable_bbox", action="store_true")
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
     
