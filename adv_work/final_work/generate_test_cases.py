@@ -5,7 +5,7 @@ import argparse
 
 def generate_scaling_cases(output_path="adv_work/final_work/scaling_experiment.json", subject_counts=None, cases_per_count=10, interaction_ratio=0.3, seed=42):
     if subject_counts is None:
-        subject_counts = [8, 10, 12]
+        subject_counts = [6, 8, 10]
     # Ensure output dir exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
@@ -64,7 +64,7 @@ def generate_scaling_cases(output_path="adv_work/final_work/scaling_experiment.j
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_path", type=str, default="adv_work/final_work/scaling_experiment.json")
-    parser.add_argument("--subject_counts", type=str, default="8,10,12")
+    parser.add_argument("--subject_counts", type=str, default="6,8,10")
     parser.add_argument("--cases_per_count", type=int, default=10)
     parser.add_argument("--interaction_ratio", type=float, default=0.3)
     parser.add_argument("--seed", type=int, default=42)

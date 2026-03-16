@@ -1,6 +1,7 @@
 ## Colab 快速展示（只跑 8/10/12 各 1 张）
 
 ### Cell 1: Clone + 安装依赖
+**注意：URL 不要加反引号。**
 ```bash
 %%bash
 set -euo pipefail
@@ -11,7 +12,8 @@ cd MOSAIC_ADV
 
 python3 -m pip install -U pip
 python3 -m pip install -r requirements.txt
-python3 -m pip install google-generativeai python-dotenv lang_sam
+python3 -m pip install google-generativeai python-dotenv
+python3 -m pip install git+https://github.com/luca-medeiros/lang-segment-anything
 ```
 
 ### Cell 2: 上传 adv_work 文件夹 + 测试 LLM

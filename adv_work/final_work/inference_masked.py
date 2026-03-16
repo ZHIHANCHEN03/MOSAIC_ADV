@@ -7,6 +7,7 @@ import torchvision.transforms.functional as TF
 import numpy as np
 from PIL import Image
 import cv2
+from transformers import CLIPModel, CLIPProcessor
 from diffusers import FluxPipeline
 from src.flux_omini import Condition, generate
 from utils import process_image
@@ -297,13 +298,25 @@ def install_spatial_attn_patch(penalty_strength: float = 10.0):
                 if spatial_mask.shape[0] == img_seq_len and num_subjects > 0:
                     cursor = 0
                     for (branch_idx, k_len) in branch_k_meta:
-                        if branch_idx >= 2:
+                        if branch_idx < h2_n:
+                            weight = float(getattr(mosaic, "TEXT_ATTN_WEIGHT", 1.0))
+                            if weight <= 0:
+                                weight = 1.0
+                            bias = torch.full((1, 1, img_seq_len, k_len), float(np.log(weight)), device=query.device, dtype=query.dtype)
+                            bias_chunks.append(bias)
+                        elif branch_idx >= 2:
                             subj_idx = branch_idx - 2
                             if 0 <= subj_idx < num_subjects:
                                 subj_mask = spatial_mask[:, subj_idx].to(device=query.device, dtype=query.dtype)
                                 # mask=1 -> bias 0 ; mask=0 -> bias = -penalty_strength
                                 subj_bias = (subj_mask - 1.0) * float(penalty_strength)  # [img_seq_len]
                                 bias_chunks.append(subj_bias.view(1, 1, -1, 1).expand(1, 1, img_seq_len, k_len))
+                            else:
+                                bias_chunks.append(torch.zeros((1, 1, img_seq_len, k_len), device=query.device, dtype=query.dtype))
+                        elif branch_idx == 1:
+                            self_bias = getattr(mosaic, "SPATIAL_SELF_BIAS", None)
+                            if self_bias is not None and self_bias.shape[0] == img_seq_len:
+                                bias_chunks.append(self_bias.view(1, 1, img_seq_len, img_seq_len))
                             else:
                                 bias_chunks.append(torch.zeros((1, 1, img_seq_len, k_len), device=query.device, dtype=query.dtype))
                         else:
@@ -352,6 +365,21 @@ def install_spatial_attn_patch(penalty_strength: float = 10.0):
     mosaic.attn_forward = _masked_attn_forward
     mosaic._SPATIAL_ATTN_PATCH_INSTALLED = True
 
+def _load_clip(device):
+    model_id = "openai/clip-vit-large-patch14"
+    model = CLIPModel.from_pretrained(model_id).to(device)
+    processor = CLIPProcessor.from_pretrained(model_id)
+    return model, processor
+
+def _clip_score(model, processor, image, text, device):
+    inputs = processor(text=[text], images=image, return_tensors="pt", padding=True)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    with torch.no_grad():
+        outputs = model(**inputs)
+        image_embeds = F.normalize(outputs.image_embeds, dim=-1)
+        text_embeds = F.normalize(outputs.text_embeds, dim=-1)
+        return torch.matmul(image_embeds, text_embeds.T).item()
+
 
 def run_inference(pipe, args):
     with open(args.json_path, 'r') as f:
@@ -363,6 +391,11 @@ def run_inference(pipe, args):
     
     layout_results = {} # Store layouts for evaluation
     
+    clip_model = None
+    clip_processor = None
+    if args.select_best_by_clip and args.num_samples > 1:
+        clip_model, clip_processor = _load_clip(pipe.device)
+
     for item in data_list:
         index = item['index']
         prompt = item['prompt']
@@ -380,6 +413,8 @@ def run_inference(pipe, args):
         # 1. Generate Layout (LLM)
         print(f"Generating Layout for Case {index} ({len(ref_imgs)} subjects)...")
         layout_result = generate_layout(prompt, len(ref_imgs), 512, 512)
+        if isinstance(layout_result, dict) and not layout_result.get("layout_ok", True):
+            layout_result = generate_layout(prompt, len(ref_imgs), 512, 512)
         if isinstance(layout_result, dict):
             bboxes = layout_result.get("bboxes", [])
             interaction_level = layout_result.get("interaction", "none")
@@ -393,10 +428,10 @@ def run_inference(pipe, args):
         alpha = 1.0
         if interaction_level == "strong":
             kernel_size = kernel_size + 8
-            alpha = 0.6
+            alpha = 0.5
         elif interaction_level == "weak":
             kernel_size = kernel_size + 4
-            alpha = 0.8
+            alpha = 0.7
         
         if args.use_shape_mask:
             mask = create_shape_mask(bboxes, ref_imgs, 512, 512, kernel_size=kernel_size, prompt=prompt, use_langsam=args.use_langsam_mask).to(pipe.device)
@@ -404,6 +439,15 @@ def run_inference(pipe, args):
             mask = create_soft_mask(bboxes, 512, 512, kernel_size=kernel_size).to(pipe.device)
         if alpha < 1.0:
             mask = mask * alpha + (1.0 - alpha)
+        if args.self_attn_penalty > 0 and mask.shape[1] > 1:
+            subj_ids = torch.argmax(mask, dim=1)
+            self_bias = (subj_ids[:, None] == subj_ids[None, :]).to(mask.dtype)
+            self_bias = (self_bias - 1.0) * float(args.self_attn_penalty)
+            mosaic.SPATIAL_SELF_BIAS = self_bias
+        else:
+            mosaic.SPATIAL_SELF_BIAS = None
+        mosaic.TEXT_ATTN_WEIGHT = float(args.text_attn_weight)
+        mosaic.SELF_ATTN_PENALTY = float(args.self_attn_penalty)
         
         # 3. Publish Mask to Mosaic module (so patched attn_forward can see it)
         mosaic.SPATIAL_MASK = mask
@@ -412,24 +456,35 @@ def run_inference(pipe, args):
         conditions = [Condition(img, "subject", position_delta=[0,0]) for img in ref_imgs]
 
         print(f"Generating Image...")
-        with torch.no_grad():
-            result = generate(
-                pipe,
-                prompt=prompt,
-                conditions=conditions,
-                num_inference_steps=28,
-                height=512,
-                width=512,
-                guidance_scale=3.5,
-                generator=torch.Generator("cuda").manual_seed(42),
-            )[0]
-            
+        best_score = None
+        best_image = None
+        for s in range(args.num_samples):
+            with torch.no_grad():
+                result = generate(
+                    pipe,
+                    prompt=prompt,
+                    conditions=conditions,
+                    num_inference_steps=28,
+                    height=512,
+                    width=512,
+                    guidance_scale=3.5,
+                    generator=torch.Generator("cuda").manual_seed(42 + s),
+                )[0]
+            image = result[0]
+            if clip_model is None:
+                best_image = image
+                break
+            score = _clip_score(clip_model, clip_processor, image, prompt, pipe.device)
+            if best_score is None or score > best_score:
+                best_score = score
+                best_image = image
         out_path = os.path.join(args.output_dir, f"{index}_cfg_3.5_512x512.jpg")
-        result[0].save(out_path)
+        best_image.save(out_path)
         print(f"Saved to {out_path}")
         
         # Cleanup mask for next iteration
         mosaic.SPATIAL_MASK = None
+        mosaic.SPATIAL_SELF_BIAS = None
     
     # Save all layouts to disk for eval.py
         layout_path = os.path.join(args.output_dir, "layout_results.json")
@@ -445,6 +500,10 @@ if __name__ == "__main__":
     parser.add_argument("--kernel_size", type=int, default=15, help="Gaussian blur kernel size for soft mask")
     parser.add_argument("--use_shape_mask", action="store_true")
     parser.add_argument("--use_langsam_mask", action="store_true")
+    parser.add_argument("--num_samples", type=int, default=1)
+    parser.add_argument("--select_best_by_clip", action="store_true")
+    parser.add_argument("--self_attn_penalty", type=float, default=1.2)
+    parser.add_argument("--text_attn_weight", type=float, default=0.7)
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
     
