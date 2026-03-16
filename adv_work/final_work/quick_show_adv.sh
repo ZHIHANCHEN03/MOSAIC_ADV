@@ -26,7 +26,6 @@ python3 adv_work/final_work/inference_masked.py \
     --penalty_strength 6 \
     --kernel_size 31 \
     --num_samples 2 \
-    --select_best_by_clip \
     --self_attn_penalty 1.2 \
     --text_attn_weight 0.7
 

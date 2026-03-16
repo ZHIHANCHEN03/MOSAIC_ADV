@@ -10,6 +10,8 @@ rm -rf MOSAIC_ADV
 git clone https://github.com/ZHIHANCHEN03/MOSAIC_ADV.git MOSAIC_ADV
 cd MOSAIC_ADV
 
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
 python3 -m pip install -U pip
 python3 -m pip install -r requirements.txt
 python3 -m pip install google-generativeai python-dotenv
